@@ -44,10 +44,10 @@ export function Select({ className, ...props }: React.SelectHTMLAttributes<HTMLS
 
 export function Field({ label, hint, children, className }: { label: string; hint?: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("grid gap-1.5", className)}>
-      <Label>{label}</Label>
+    <label className={cn("grid gap-1.5", className)}>
+      <span className="text-sm font-medium leading-none">{label}</span>
       {children}
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-    </div>
+      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+    </label>
   );
 }

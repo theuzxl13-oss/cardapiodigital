@@ -46,8 +46,12 @@ export function ProductsAdmin() {
   const [editing, setEditing] = useState<Product | "new" | null>(null);
   const [catDialog, setCatDialog] = useState<Category | "new" | null>(null);
 
-  const list = useMemo(() => (data?.products ?? []).filter((p) =>
-    (cat === "all" || p.category_id === cat) && p.name.toLowerCase().includes(q.toLowerCase())), [data, q, cat]);
+  const list = useMemo(() => {
+    const order = new Map((data?.categories ?? []).map((c) => [c.id, c.sort_order]));
+    return (data?.products ?? [])
+      .filter((p) => (cat === "all" || p.category_id === cat) && p.name.toLowerCase().includes(q.toLowerCase()))
+      .sort((a, b) => (order.get(a.category_id) ?? 0) - (order.get(b.category_id) ?? 0) || a.sort_order - b.sort_order);
+  }, [data, q, cat]);
 
   if (!data) return <div className="p-8"><Skeleton className="h-96" /></div>;
 

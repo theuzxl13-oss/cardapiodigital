@@ -69,7 +69,7 @@ export function TabCheckout({ tabId }: { tabId: string }) {
   const receivedValue = method === "cash" ? parseMoney(received || String(amountValue)) : amountValue;
   const change = method === "cash" ? changeFor(amountValue, receivedValue) : 0;
   const selectedSubtotal = items.filter((i) => selectedItems.has(i.id)).reduce((s, i) => s + Number(i.line_total), 0);
-  const pendingKitchen = data.orders.filter((o) => ["received", "preparing", "ready"].includes(o.status)).length;
+  const pendingKitchen = data.orders.filter((o) => ["received", "preparing"].includes(o.status)).length;
 
   function fill(v: number) {
     setAmount(v.toFixed(2).replace(".", ","));
@@ -280,9 +280,9 @@ export function TabCheckout({ tabId }: { tabId: string }) {
           {isOpen && (
             <Card className={cn(balance <= 0 && "border-2 border-emerald-500")}>
               <CardContent className="space-y-2 p-5">
-                {pendingKitchen > 0 && <p className="text-sm text-amber-700 dark:text-amber-400">Atenção: {pendingKitchen} pedido(s) ainda em andamento na cozinha/salão.</p>}
+                {pendingKitchen > 0 && <p className="text-sm text-amber-700 dark:text-amber-400">{pendingKitchen} pedido(s) aguardando ou em preparo: conclua ou cancele antes de encerrar.</p>}
                 {balance <= 0 ? (
-                  <Button size="xl" variant="success" className="w-full" disabled={closing} onClick={() => closeTab().catch(() => {})}>
+                  <Button size="xl" variant="success" className="w-full" disabled={closing || pendingKitchen > 0} onClick={() => closeTab().catch(() => {})}>
                     {closing ? <Spinner /> : <Lock />} Encerrar comanda e liberar mesa
                   </Button>
                 ) : (

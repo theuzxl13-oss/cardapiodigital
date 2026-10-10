@@ -102,7 +102,7 @@ export function KitchenBoard({ soundDefault, lateMinutes }: { soundDefault: bool
               <h2 className={cn("mb-2.5 flex items-center justify-between border-l-4 px-3 py-1 text-lg font-bold uppercase tracking-wide", col.accent)}>
                 {col.title} <span className="tabular rounded-full bg-white/10 px-3 text-base">{list.length}</span>
               </h2>
-              <div className="grid content-start gap-2.5 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <div className="grid content-start gap-2.5 md:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
                 {list.map((o) => {
                   const mins = minutesSince(o.created_at, now);
                   const late = col.status !== "ready" && mins >= lateMinutes;

@@ -389,3 +389,11 @@ $$;
 
 revoke execute on function public.demo_generate_history(int), public.demo_generate_live_orders() from public, anon, authenticated;
 grant execute on function public.demo_generate_history(int), public.demo_generate_live_orders() to service_role;
+
+-- Define PIN de supervisor durante o seed (somente service_role)
+create or replace function public.demo_set_pin(p_user_id uuid, p_pin text)
+returns void language sql security definer set search_path = public, extensions as $$
+  update public.profiles set pin_hash = extensions.crypt(p_pin, extensions.gen_salt('bf', 8)) where id = p_user_id;
+$$;
+revoke execute on function public.demo_set_pin(uuid, text) from public, anon, authenticated;
+grant execute on function public.demo_set_pin(uuid, text) to service_role;

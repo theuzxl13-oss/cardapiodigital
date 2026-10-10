@@ -260,16 +260,16 @@ export function MenuApp({ restaurant, categories, initialProducts, initialState 
       {/* Barra inferior */}
       <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-2xl border-t bg-background/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         <div className="flex gap-2">
-          <Button variant="outline" size="lg" className="rounded-full px-4" onClick={callWaiter} disabled={hasRequest("call_waiter")}>
-            <BellRing /> {hasRequest("call_waiter") ? "Chamado" : "Garçom"}
+          <Button variant="outline" size="lg" className="shrink-0 rounded-full px-3.5" onClick={callWaiter} disabled={hasRequest("call_waiter")} aria-label="Chamar garçom">
+            <BellRing /> <span className="hidden min-[400px]:inline">{hasRequest("call_waiter") ? "Chamado" : "Garçom"}</span>
           </Button>
-          <Button variant="outline" size="lg" className="relative rounded-full px-4" onClick={() => setOrdersOpen(true)}>
+          <Button variant="outline" size="lg" className="relative shrink-0 rounded-full px-3.5" onClick={() => setOrdersOpen(true)}>
             <Receipt /> Conta
             {activeOrders > 0 && <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-amber-500 text-[11px] font-bold text-white">{activeOrders}</span>}
           </Button>
-          <Button size="lg" className="flex-1 rounded-full" onClick={() => setCartOpen(true)} disabled={cart.items.length === 0}>
+          <Button size="lg" className="min-w-0 flex-1 rounded-full" onClick={() => setCartOpen(true)} disabled={cart.items.length === 0}>
             <ShoppingBag />
-            {cart.items.length === 0 ? "Carrinho vazio" : <><span>{cartCount(cart.items)} · </span><span className="tabular">{money(cartSubtotal(cart.items))}</span></>}
+            {cart.items.length === 0 ? "Carrinho" : <><span>{cartCount(cart.items)} · </span><span className="tabular">{money(cartSubtotal(cart.items))}</span></>}
           </Button>
         </div>
       </div>
@@ -291,7 +291,7 @@ export function MenuApp({ restaurant, categories, initialProducts, initialState 
                 <div className="grid grid-cols-2 gap-2 rounded-full bg-muted p-1">
                   <button onClick={() => setView3d(false)} className={cn("rounded-full py-2 text-sm font-medium", !view3d && "bg-card shadow-sm")}>Foto</button>
                   <button onClick={() => setView3d(true)} className={cn("flex items-center justify-center gap-1.5 rounded-full py-2 text-sm font-medium", view3d && "bg-card shadow-sm")}>
-                    <Cuboid className="size-4" /> 3D / Realidade aumentada
+                    <Cuboid className="size-4" /> 3D · Ver na mesa
                   </button>
                 </div>
               )}
@@ -462,7 +462,7 @@ function OrdersSheet({ open, onOpenChange, state, onChanged, hasBillRequest }: {
               <div key={o.id} className="rounded-xl border p-3.5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-semibold">Pedido #{o.number} <span className="text-xs font-normal text-muted-foreground">· {time(o.created_at)} · {o.source === "waiter" ? "pelo garçom" : o.mine ? "deste aparelho" : "pela mesa"}</span></p>
-                  <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", ORDER_STATUS_COLOR[o.status])}>{ORDER_STATUS_LABEL[o.status]}</span>
+                  <span className={cn("shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium", ORDER_STATUS_COLOR[o.status])}>{ORDER_STATUS_LABEL[o.status]}</span>
                 </div>
                 {o.status !== "cancelled" && (
                   <div className="mt-3 flex gap-1">

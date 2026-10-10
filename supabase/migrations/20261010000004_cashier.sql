@@ -255,6 +255,9 @@ begin
   select * into v_tab from public.tabs where id = p_tab_id and restaurant_id = v_me.restaurant_id for update;
   if not found then raise exception 'Comanda não encontrada'; end if;
   if v_tab.status not in ('open', 'closing') then raise exception 'Comanda já encerrada'; end if;
+  if exists (select 1 from public.orders where tab_id = p_tab_id and status in ('received', 'preparing')) then
+    raise exception 'Existem pedidos aguardando ou em preparo na cozinha. Conclua ou cancele esses pedidos antes de encerrar.';
+  end if;
 
   select * into v_tot from public.tab_totals(p_tab_id);
   if v_tot.balance > 0 then
@@ -268,6 +271,12 @@ begin
          forced_close_reason = case when v_auth is not null then trim(p_force_reason) else null end,
          forced_close_authorized_by = v_auth
    where id = p_tab_id returning * into v_tab;
+  -- Pedidos prontos ainda não marcados são considerados entregues no encerramento
+  insert into public.order_status_history (restaurant_id, order_id, from_status, to_status, changed_by, reason)
+  select restaurant_id, id, 'ready', 'delivered', v_me.id, 'Entregue no encerramento da comanda'
+    from public.orders where tab_id = p_tab_id and status = 'ready';
+  update public.orders set status = 'delivered', delivered_at = now(), delivered_by = v_me.id
+   where tab_id = p_tab_id and status = 'ready';
   update public.table_sessions set revoked_at = now() where tab_id = p_tab_id and revoked_at is null;
   update public.service_requests set status = 'done', resolved_at = now() where tab_id = p_tab_id and status <> 'done';
   perform public._audit(v_me.restaurant_id, 'tab.close', 'tabs', v_tab.id::text,
