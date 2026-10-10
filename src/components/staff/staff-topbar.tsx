@@ -8,6 +8,7 @@ import { LogoutButton } from "./logout-button";
 import { ROLE_LABEL } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
+import { asset } from "@/lib/asset";
 
 const MODULES = [
   { href: "/garcom", label: "Garçom", icon: ClipboardList, roles: ["admin", "manager", "waiter"] },
@@ -23,7 +24,7 @@ export function StaffTopbar({ profile, title, dark, children }: { profile: Profi
     <header className={cn("sticky top-0 z-30 border-b backdrop-blur no-print", dark ? "border-white/10 bg-black/80 text-white" : "bg-background/90")}>
       <div className="flex h-14 items-center gap-3 px-4">
         <Link href="/" className="flex items-center gap-2">
-          <Image src="/brand/logo.svg" alt="Logo" width={30} height={30} className="rounded-lg" />
+          <Image src={asset("/brand/logo.svg")} alt="Logo" width={30} height={30} className="rounded-lg" />
           <span className="hidden font-semibold sm:inline">{title}</span>
         </Link>
         {modules.length > 1 && (

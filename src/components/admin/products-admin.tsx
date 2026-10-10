@@ -19,6 +19,7 @@ import { RESTAURANT_ID } from "@/lib/config";
 import { money, parseMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Category, Ingredient, ModifierGroup, Product } from "@/lib/types";
+import { asset } from "@/lib/asset";
 
 async function loadAdminMenu() {
   const [categories, products, ingredients] = await Promise.all([
@@ -95,7 +96,7 @@ export function ProductsAdmin() {
                     <Td>
                       <div className="flex items-center gap-3">
                         <div className="relative size-11 shrink-0 overflow-hidden rounded-lg bg-muted">
-                          {p.image_url && <Image src={p.image_url} alt="" fill sizes="44px" className="object-cover" unoptimized={p.image_url.startsWith("http")} />}
+                          {p.image_url && <Image src={asset(p.image_url)} alt="" fill sizes="44px" className="object-cover" unoptimized={p.image_url.startsWith("http")} />}
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium">{p.name}</p>
@@ -278,7 +279,7 @@ function ProductEditor({ product, categories, ingredients, onClose, onSaved }: {
               <div className="space-y-3">
                 {form.image_url && (
                   <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
-                    <Image src={form.image_url} alt="" fill className="object-cover" unoptimized={form.image_url.startsWith("http")} />
+                    <Image src={asset(form.image_url)} alt="" fill className="object-cover" unoptimized={form.image_url.startsWith("http")} />
                   </div>
                 )}
                 {form.model_glb_url ? <ArViewer key={form.model_glb_url} glb={form.model_glb_url} usdz={form.model_usdz_url || null} alt="Pré-visualização" illustrative={form.model_is_illustrative} />

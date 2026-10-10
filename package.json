@@ -13,7 +13,8 @@
     "test:db": "vitest run tests/db",
     "models:generate": "node scripts/generate-models.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
-    "db:local:setup": "bash scripts/local-db.sh"
+    "db:local:setup": "bash scripts/local-db.sh",
+    "demo:build": "node demo/build.mjs"
   },
   "dependencies": {
     "@google/model-viewer": "^4.4.0",
@@ -42,6 +43,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@gltf-transform/core": "^4.5.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",

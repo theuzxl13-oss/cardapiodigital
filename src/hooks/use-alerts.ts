@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { asset } from "@/lib/asset";
 
 /** Alertas sonoros (Web Audio, sem arquivos externos), vibração e notificação do navegador. */
 export function useAlerts(storageKey: string, defaultEnabled = true) {
@@ -59,7 +60,7 @@ export function useAlerts(storageKey: string, defaultEnabled = true) {
   const notify = useCallback((title: string, body: string) => {
     try {
       if ("Notification" in window && Notification.permission === "granted" && document.visibilityState !== "visible") {
-        new Notification(title, { body, icon: "/brand/logo.svg", tag: title });
+        new Notification(title, { body, icon: asset("/brand/logo.svg"), tag: title });
       }
     } catch { /* ignore */ }
   }, []);

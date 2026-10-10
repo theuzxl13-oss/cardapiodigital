@@ -14,6 +14,7 @@ import { useNow } from "@/hooks/use-now";
 import { loadFloor, rpc } from "@/lib/api";
 import { elapsedLabel, money, pad } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { routes } from "@/lib/routes";
 
 export function WaiterFloor() {
   const { data, loading, connected } = useLiveQuery("waiter-floor", loadFloor, ["orders", "tabs", "service_requests", "dining_tables"]);
@@ -137,7 +138,7 @@ export function WaiterFloor() {
           const req = requests.filter((r) => r.table_id === t.id);
           const total = orders.reduce((s, o) => s + Number(o.subtotal), 0);
           return (
-            <Link key={t.id} href={`/garcom/mesa/${t.id}`}
+            <Link key={t.id} href={routes.waiterTable(t.id)}
               className={cn(
                 "relative flex min-h-32 flex-col rounded-2xl border-2 p-3 transition active:scale-[0.98]",
                 !tab && "border-emerald-200 bg-card hover:border-emerald-400 dark:border-emerald-900",

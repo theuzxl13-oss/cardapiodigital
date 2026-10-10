@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
+import { asset } from "@/lib/asset";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair", display: "swap" });
@@ -9,7 +10,7 @@ const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfa
 export const metadata: Metadata = {
   title: { default: "Sabor & Arte Bistrô", template: "%s · Sabor & Arte" },
   description: "Cardápio digital com realidade aumentada, pedidos pela mesa e gestão completa do restaurante.",
-  icons: { icon: "/brand/logo.svg" },
+  icons: { icon: asset("/brand/logo.svg") },
 };
 
 export const viewport: Viewport = {

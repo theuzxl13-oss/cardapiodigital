@@ -6,7 +6,14 @@
 
 Next.js 16 · React 19 · TypeScript · Tailwind CSS · Supabase (PostgreSQL, Auth, Realtime, Storage) · Three.js / model-viewer
 
+### 👉 [Ver demonstração online](https://theuzxl13-oss.github.io/cardapiodigital/)
+
 </div>
+
+> **Sobre a demonstração online:** roda 100% no navegador (GitHub Pages). Um PostgreSQL completo é executado na própria página
+> com **as mesmas migrações, regras e permissões** do sistema real; os dados ficam salvos só no seu navegador. Abra cliente,
+> cozinha, garçom e caixa em **abas diferentes do mesmo navegador** para ver tudo se comunicando. Senha dos acessos: `Demo@1234`.
+> Para operação real (dados compartilhados entre aparelhos), publique com Supabase + Vercel — veja abaixo.
 
 ---
 
@@ -22,6 +29,7 @@ Next.js 16 · React 19 · TypeScript · Tailwind CSS · Supabase (PostgreSQL, Au
 8. [Como colocar no ar (passo a passo)](#-como-colocar-no-ar-passo-a-passo)
 9. [Modo demonstração e acessos](#-modo-demonstração-e-acessos)
 10. [Rodar no computador (desenvolvedores)](#-rodar-no-computador-desenvolvedores)
+11. [Demonstração no GitHub Pages](#-demonstração-no-github-pages)
 11. [Testes](#-testes)
 12. [Estrutura do projeto](#-estrutura-do-projeto)
 13. [Limitações e próximos passos](#-limitações-e-próximos-passos)
@@ -371,6 +379,22 @@ Supabase local (Docker): `npx supabase start` aplica migrações e seed automati
 | `npm run db:local:setup` | Cria banco PostgreSQL local para os testes |
 
 Variáveis de ambiente: veja [`.env.example`](.env.example).
+
+---
+
+## 🌐 Demonstração no GitHub Pages
+
+A versão online é gerada a partir do mesmo código por `npm run demo:build` (pasta `demo/`):
+
+- `demo/overrides/` substitui apenas o que depende de servidor: o cliente Supabase vira um adaptador que executa as
+  consultas no **PGlite** (PostgreSQL em WebAssembly) com as migrações de `supabase/`; páginas de servidor viram páginas de navegador.
+- O banco é compartilhado entre abas (worker com eleição de líder) e salvo no IndexedDB; o botão **Restaurar dados** recria tudo.
+- O resultado (`demo-dist/`) é publicado no branch `gh-pages`.
+
+```bash
+npm run demo:build                          # gera demo-dist/
+DEMO=1 BASE_URL=http://localhost:4000/cardapiodigital node tests/e2e/full-flow.mjs   # E2E contra a versão estática
+```
 
 ---
 

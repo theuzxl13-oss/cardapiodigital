@@ -11,6 +11,7 @@ import { LogoutButton } from "@/components/staff/logout-button";
 import { ROLE_LABEL } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
+import { asset } from "@/lib/asset";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -51,7 +52,7 @@ export function AdminSidebar({ profile }: { profile: Profile }) {
       <aside className={cn("no-print fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-sidebar text-sidebar-foreground transition-transform lg:sticky lg:top-0 lg:h-dvh lg:w-auto lg:translate-x-0",
         open ? "translate-x-0" : "-translate-x-full")}>
         <div className="flex items-center gap-2.5 p-4">
-          <Image src="/brand/logo.svg" alt="Logo" width={34} height={34} className="rounded-lg" />
+          <Image src={asset("/brand/logo.svg")} alt="Logo" width={34} height={34} className="rounded-lg" />
           <div className="leading-tight">
             <p className="font-display font-semibold">Sabor &amp; Arte</p>
             <p className="text-xs text-white/50">Administração</p>

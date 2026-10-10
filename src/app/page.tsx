@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DEMO_MODE, RESTAURANT_ID, SUPABASE_CONFIGURED } from "@/lib/config";
 import { getServiceSupabase } from "@/lib/supabase/server";
+import { asset } from "@/lib/asset";
 
 export const dynamic = "force-dynamic";
 
@@ -40,10 +41,10 @@ export default async function Home() {
   return (
     <main className="min-h-dvh">
       <section className="relative overflow-hidden bg-[#1b110d] text-[#fbeee0]">
-        <Image src="/brand/cover.svg" alt="" fill className="object-cover opacity-90" priority />
+        <Image src={asset("/brand/cover.svg")} alt="" fill className="object-cover opacity-90" priority />
         <div className="relative mx-auto flex max-w-6xl flex-col gap-6 px-5 py-14 md:py-20">
           <div className="flex items-center gap-3">
-            <Image src="/brand/logo.svg" alt="Logo" width={48} height={48} className="rounded-xl" />
+            <Image src={asset("/brand/logo.svg")} alt="Logo" width={48} height={48} className="rounded-xl" />
             <div>
               <p className="font-display text-2xl font-semibold">Sabor &amp; Arte Bistrô</p>
               <p className="text-sm opacity-75">Plataforma digital do restaurante</p>
