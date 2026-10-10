@@ -5,6 +5,7 @@ import { Cuboid, Info, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import type { ModelViewerElement } from "@/types/model-viewer";
 import { Spinner } from "@/components/ui/misc";
+import { asset } from "@/lib/asset";
 
 interface Props {
   glb: string;
@@ -62,10 +63,10 @@ export function ArViewer({ glb, usdz, alt, poster, illustrative = true, classNam
         {ready && (
           <model-viewer
             ref={ref as React.Ref<HTMLElement>}
-            src={glb}
-            ios-src={usdz ?? undefined}
+            src={asset(glb)}
+            ios-src={asset(usdz) ?? undefined}
             alt={alt}
-            poster={poster ?? undefined}
+            poster={asset(poster) ?? undefined}
             ar=""
             ar-modes="webxr scene-viewer quick-look"
             ar-scale="fixed"

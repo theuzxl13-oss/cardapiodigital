@@ -10,6 +10,7 @@ import { check, loadTabDetail, sb } from "@/lib/api";
 import { dateTime, money, pad } from "@/lib/format";
 import { PAYMENT_LABEL } from "@/lib/labels";
 import type { Restaurant } from "@/lib/types";
+import { routes } from "@/lib/routes";
 
 /**
  * Comprovante NÃO FISCAL em layout de bobina 80mm. Impressão via diálogo do navegador
@@ -31,7 +32,7 @@ export function Receipt({ tabId }: { tabId: string }) {
   return (
     <main className="mx-auto flex max-w-md flex-col items-center gap-4 p-6">
       <div className="no-print flex w-full gap-2">
-        <Button asChild variant="outline"><Link href={`/caixa/comanda/${tab.id}`}><ArrowLeft /> Voltar</Link></Button>
+        <Button asChild variant="outline"><Link href={routes.checkout(tab.id)}><ArrowLeft /> Voltar</Link></Button>
         <Button asChild variant="ghost"><Link href="/caixa">Comandas</Link></Button>
         <Button className="ml-auto" onClick={() => window.print()}><Printer /> Imprimir</Button>
       </div>

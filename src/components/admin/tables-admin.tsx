@@ -17,6 +17,7 @@ import { RESTAURANT_ID } from "@/lib/config";
 import { dateTime, elapsedLabel, pad } from "@/lib/format";
 import { TAB_STATUS_LABEL } from "@/lib/labels";
 import type { DiningTable, Tab } from "@/lib/types";
+import { routes } from "@/lib/routes";
 
 async function load() {
   const [tables, tabs, history] = await Promise.all([
@@ -52,7 +53,7 @@ export function TablesAdmin() {
                   <Td className="text-lg font-bold">{pad(t.number)}</Td>
                   <Td>{t.label}</Td>
                   <Td>{t.seats}</Td>
-                  <Td>{tab ? <Link className="text-primary hover:underline" href={`/caixa/comanda/${tab.id}`}>Comanda #{tab.number} · {TAB_STATUS_LABEL[tab.status]} · {elapsedLabel(tab.opened_at)}</Link> : <span className="text-emerald-700 dark:text-emerald-400">Livre</span>}</Td>
+                  <Td>{tab ? <Link className="text-primary hover:underline" href={routes.checkout(tab.id)}>Comanda #{tab.number} · {TAB_STATUS_LABEL[tab.status]} · {elapsedLabel(tab.opened_at)}</Link> : <span className="text-emerald-700 dark:text-emerald-400">Livre</span>}</Td>
                   <Td><Switch checked={t.active} disabled={!!tab} onCheckedChange={async (v) => { const { error } = await sb().from("dining_tables").update({ active: v }).eq("id", t.id); if (error) toast.error(error.message); else reload(); }} /></Td>
                   <Td className="text-right"><Button size="icon-sm" variant="ghost" onClick={() => setEditing(t)}><Pencil /></Button></Td>
                 </tr>
@@ -75,7 +76,7 @@ export function TablesAdmin() {
                   <Td>{dateTime(t.opened_at)}</Td>
                   <Td>{dateTime(t.closed_at)}</Td>
                   <Td>{TAB_STATUS_LABEL[t.status]}{t.forced_close_reason ? ` · ${t.forced_close_reason}` : ""}</Td>
-                  <Td className="text-right"><Button asChild size="sm" variant="ghost"><Link href={`/caixa/comanda/${t.id}`}>Detalhes</Link></Button></Td>
+                  <Td className="text-right"><Button asChild size="sm" variant="ghost"><Link href={routes.checkout(t.id)}>Detalhes</Link></Button></Td>
                 </tr>
               ))}
             </tbody>

@@ -22,6 +22,7 @@ import { dateTime, money, pad, parseMoney, time } from "@/lib/format";
 import { PAYMENT_LABEL, TAB_STATUS_LABEL } from "@/lib/labels";
 import { cn, newIdempotencyKey } from "@/lib/utils";
 import type { PaymentMethod, Profile, Restaurant } from "@/lib/types";
+import { routes } from "@/lib/routes";
 
 const METHODS: { id: PaymentMethod; icon: typeof Banknote }[] = [
   { id: "cash", icon: Banknote }, { id: "pix", icon: QrCode }, { id: "debit", icon: CreditCard }, { id: "credit", icon: CreditCard },
@@ -107,7 +108,7 @@ export function TabCheckout({ tabId }: { tabId: string }) {
     try {
       await rpc("close_tab", { p_tab_id: tab.id, p_force_reason: reason ?? null, p_supervisor_pin: pin ?? null });
       toast.success(`Comanda #${tab.number} encerrada. Mesa ${pad(table.number)} liberada.`);
-      router.push(`/caixa/comanda/${tab.id}/recibo`);
+      router.push(routes.receipt(tab.id));
     } catch (e) {
       toast.error((e as Error).message);
       throw e;
@@ -134,7 +135,7 @@ export function TabCheckout({ tabId }: { tabId: string }) {
           <p className="text-sm text-muted-foreground">Aberta em {dateTime(tab.opened_at)}{tab.customer_count ? ` · ${tab.customer_count} pessoas` : ""}</p>
         </div>
         <Badge variant={tab.status === "closed" ? "secondary" : tab.status === "closing" ? "info" : "warning"} className="ml-auto">{TAB_STATUS_LABEL[tab.status]}</Badge>
-        <Button asChild variant="outline"><Link href={`/caixa/comanda/${tab.id}/recibo`}><Printer /> {isOpen ? "Pré-conta" : "Comprovante"}</Link></Button>
+        <Button asChild variant="outline"><Link href={routes.receipt(tab.id)}><Printer /> {isOpen ? "Pré-conta" : "Comprovante"}</Link></Button>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_420px]">

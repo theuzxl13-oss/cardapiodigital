@@ -10,6 +10,10 @@ import { chromium, devices } from "playwright-core";
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const SHOTS = process.env.SHOTS_DIR ?? "e2e-screenshots";
 const PASSWORD = process.env.DEMO_PASSWORD ?? "Demo@1234";
+// DEMO=1: versão estática (GitHub Pages) — todas as telas em abas do MESMO navegador (banco compartilhado).
+const DEMO = process.env.DEMO === "1";
+let shared = null;
+const pathIs = (u, p) => u.pathname.replace(/\/$/, "").endsWith(p);
 fs.mkdirSync(SHOTS, { recursive: true });
 
 const browser = await chromium.launch({
@@ -21,29 +25,37 @@ const log = (msg) => console.log(`✓ ${String(++step).padStart(2, "0")}. ${msg}
 const shot = (page, name) => page.screenshot({ path: `${SHOTS}/${String(step).padStart(2, "0")}-${name}.png`, fullPage: false });
 
 async function staff(email, path) {
-  const ctx = await browser.newContext({ viewport: { width: 1366, height: 900 }, locale: "pt-BR" });
+  const ctx = DEMO
+    ? (shared ??= await browser.newContext({ viewport: { width: 1366, height: 900 }, locale: "pt-BR" }))
+    : await browser.newContext({ viewport: { width: 1366, height: 900 }, locale: "pt-BR" });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => console.error(`[${email}] pageerror:`, e.message));
   await page.goto(`${BASE}/login?next=${path}`);
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha").fill(PASSWORD);
   await page.getByRole("button", { name: "Entrar" }).click();
-  await page.waitForURL((u) => u.pathname === path, { timeout: 20000 });
+  await page.waitForURL((u) => pathIs(u, path), { timeout: 30000 });
   return page;
 }
 
 try {
   // 1-4. Cliente chega, ocupa a Mesa 05, escaneia o QR e abre o cardápio
-  const home = await browser.newPage();
+  const home = DEMO
+    ? await (shared ??= await browser.newContext({ viewport: { width: 1366, height: 900 }, locale: "pt-BR" })).newPage()
+    : await browser.newPage();
   await home.goto(BASE);
+  await home.getByRole("link", { name: "05", exact: true }).waitFor({ timeout: 60000 });
   const href = await home.getByRole("link", { name: "05", exact: true }).getAttribute("href");
   await home.close();
   if (!href?.includes("k=")) throw new Error("Link da Mesa 05 não encontrado na home (modo demo)");
-  const cctx = await browser.newContext({ ...devices["iPhone 13"], locale: "pt-BR" });
+  const cctx = DEMO
+    ? (shared ??= await browser.newContext({ viewport: { width: 1366, height: 900 }, locale: "pt-BR" }))
+    : await browser.newContext({ ...devices["iPhone 13"], locale: "pt-BR" });
   const customer = await cctx.newPage();
+  if (DEMO) await customer.setViewportSize({ width: 390, height: 844 });
   customer.on("pageerror", (e) => console.error("[cliente] pageerror:", e.message));
-  await customer.goto(BASE + href);
-  await customer.waitForURL("**/menu?mesa=05");
+  await customer.goto(new URL(href, BASE + "/").toString());
+  await customer.waitForURL((u) => pathIs(u, "/menu") && u.searchParams.get("mesa") === "05", { timeout: 30000 });
   await customer.getByText("Destaques da casa").waitFor();
   log("Cliente escaneou o QR da Mesa 05 e abriu o cardápio (token trocado por sessão httpOnly)");
   await shot(customer, "cardapio");
@@ -81,10 +93,10 @@ try {
   await customer.keyboard.press("Escape");
 
   // Segurança: trocar ?mesa= na URL não dá acesso a outra mesa
-  const tamper = await cctx.newPage();
-  await tamper.goto(`${BASE}/menu?mesa=02`);
-  await tamper.getByText("Mesa diferente da sua sessão").waitFor();
-  await tamper.close();
+  await customer.goto(`${BASE}/menu?mesa=02`);
+  await customer.getByText("Mesa diferente da sua sessão").waitFor();
+  await customer.goto(`${BASE}/menu?mesa=05`);
+  await customer.getByText("Destaques da casa").waitFor();
   log("Alterar a URL para ?mesa=02 é bloqueado (sessão vinculada à Mesa 05)");
 
   // 10-12. Cozinha recebe, inicia preparo e marca pronto
@@ -150,7 +162,7 @@ try {
   await cashier.getByText(`troco R$ ${change}`).first().waitFor();
   log(`Pagamento em dinheiro registrado: recebido R$ ${received},00, troco R$ ${change}`);
   await cashier.getByRole("button", { name: "Encerrar comanda e liberar mesa" }).click();
-  await cashier.waitForURL("**/recibo");
+  await cashier.waitForURL((u) => u.pathname.includes("/recibo"), { timeout: 20000 });
   await cashier.getByText("COMPROVANTE NÃO FISCAL").waitFor();
   log("Comanda encerrada; comprovante não fiscal gerado");
   await shot(cashier, "comprovante");
@@ -188,7 +200,7 @@ try {
 
   // Controle de acesso: garçom não acessa admin
   await waiter.goto(`${BASE}/admin`);
-  await waiter.waitForURL("**/acesso-negado");
+  await waiter.waitForURL((u) => u.pathname.includes("/acesso-negado"), { timeout: 20000 });
   log("Garçom é bloqueado na área administrativa");
 
   console.log(`\nFluxo completo aprovado. Capturas em ${SHOTS}/`);

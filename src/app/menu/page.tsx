@@ -7,6 +7,7 @@ import { getAnonSupabase } from "@/lib/supabase/server";
 import { readTableToken } from "@/lib/table-session";
 import { RESTAURANT_ID, SUPABASE_CONFIGURED } from "@/lib/config";
 import type { Category, Product, Restaurant } from "@/lib/types";
+import { asset } from "@/lib/asset";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Cardápio" };
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "Cardápio" };
 function Notice({ title, message }: { title: string; message: string }) {
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-5 bg-[#1b110d] p-8 text-center text-[#fbeee0]">
-      <Image src="/brand/logo.svg" alt="Logo" width={64} height={64} className="rounded-2xl" />
+      <Image src={asset("/brand/logo.svg")} alt="Logo" width={64} height={64} className="rounded-2xl" />
       <QrCode className="size-14 opacity-80" />
       <h1 className="font-display text-2xl font-semibold">{title}</h1>
       <p className="max-w-sm opacity-80">{message}</p>

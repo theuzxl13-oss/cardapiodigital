@@ -14,6 +14,7 @@ import { check, sb } from "@/lib/api";
 import { elapsedLabel, money, pad, time } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { DiningTable, Tab, TabTotals } from "@/lib/types";
+import { routes } from "@/lib/routes";
 
 async function loadTabs() {
   const today = new Date();
@@ -64,7 +65,7 @@ export function CashierTabs() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {list.map((t) => (
-            <Link key={t.id} href={`/caixa/comanda/${t.id}`}>
+            <Link key={t.id} href={routes.checkout(t.id)}>
               <Card className={cn("h-full transition hover:-translate-y-0.5 hover:shadow-md", t.status === "closing" && "border-2 border-violet-400")}>
                 <CardHeader className="flex-row items-start justify-between pb-2">
                   <div>
@@ -97,7 +98,7 @@ export function CashierTabs() {
                     <Td>{pad(tableNo(t.table_id))}</Td>
                     <Td>{time(t.opened_at)}</Td>
                     <Td>{time(t.closed_at)}</Td>
-                    <Td className="text-right"><Button asChild size="sm" variant="ghost"><Link href={`/caixa/comanda/${t.id}/recibo`}><Printer /> Comprovante</Link></Button></Td>
+                    <Td className="text-right"><Button asChild size="sm" variant="ghost"><Link href={routes.receipt(t.id)}><Printer /> Comprovante</Link></Button></Td>
                   </tr>
                 ))}
               </tbody>

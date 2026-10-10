@@ -18,6 +18,8 @@ import { cartCount, cartLineTotal, cartSubtotal, toOrderPayload } from "@/lib/ca
 import { money, pad, time } from "@/lib/format";
 import { ORDER_STATUS_COLOR, ORDER_STATUS_LABEL } from "@/lib/labels";
 import { getBrowserSupabase } from "@/lib/supabase/client";
+import { customerApi } from "@/lib/customer-api";
+import { asset } from "@/lib/asset";
 import { cn, newIdempotencyKey } from "@/lib/utils";
 import type { Category, OrderStatus, Product, Restaurant, TabTotals } from "@/lib/types";
 
@@ -38,22 +40,6 @@ export interface CustomerState {
 
 const STATUS_STEPS: OrderStatus[] = ["received", "preparing", "ready", "delivered"];
 
-async function api<T>(url: string, body?: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: body ? "POST" : "GET",
-    headers: body ? { "content-type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-    cache: "no-store",
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const err = new Error(data?.error ?? "Erro de comunicação") as Error & { status?: number };
-    err.status = res.status;
-    throw err;
-  }
-  return data as T;
-}
-
 export function MenuApp({ restaurant, categories, initialProducts, initialState }: {
   restaurant: Restaurant; categories: Category[]; initialProducts: Product[]; initialState: CustomerState;
 }) {
@@ -71,7 +57,7 @@ export function MenuApp({ restaurant, categories, initialProducts, initialState 
   // --- Estado da comanda (atualização contínua) -----------------------------------
   const refresh = useCallback(async () => {
     try {
-      const s = await api<CustomerState>("/api/mesa/estado");
+      const s = await customerApi.getState<CustomerState>();
       for (const o of s.orders) {
         const before = prevStatuses.current.get(o.id);
         if (before && before !== o.status) {
@@ -100,7 +86,14 @@ export function MenuApp({ restaurant, categories, initialProducts, initialState 
     const channel = supabase
       .channel("menu-products")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "products", filter: `restaurant_id=eq.${restaurant.id}` }, (payload) => {
-        const p = payload.new as Product;
+        const p = payload?.new as Product | undefined;
+        if (!p?.id) {
+          // Evento sem a linha alterada: recarrega o cardápio completo
+          supabase.from("products").select("*, modifier_groups(*, modifier_options(*))").eq("restaurant_id", restaurant.id)
+            .eq("active", true).is("deleted_at", null).order("sort_order")
+            .then(({ data }) => data && setProducts(data as Product[]));
+          return;
+        }
         setProducts((prev) => {
           const visible = p.active && !p.deleted_at;
           const exists = prev.some((x) => x.id === p.id);
@@ -133,7 +126,7 @@ export function MenuApp({ restaurant, categories, initialProducts, initialState 
 
   async function callWaiter() {
     try {
-      await api("/api/mesa/chamar", { type: "call_waiter" });
+      await customerApi.requestService("call_waiter");
       toast.success("Garçom chamado! Em instantes alguém virá até sua mesa.");
       refresh();
     } catch (e) {
@@ -156,10 +149,10 @@ export function MenuApp({ restaurant, categories, initialProducts, initialState 
     <div className="mx-auto min-h-dvh max-w-2xl bg-background pb-32">
       {/* Cabeçalho */}
       <header className="relative h-52 overflow-hidden text-[#fbeee0]">
-        <Image src={restaurant.cover_url ?? "/brand/cover.svg"} alt="" fill priority className="object-cover" />
+        <Image src={asset(restaurant.cover_url ?? "/brand/cover.svg")} alt="" fill priority className="object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 flex items-end gap-3 p-5">
-          <Image src={restaurant.logo_url ?? "/brand/logo.svg"} alt="Logo" width={56} height={56} className="rounded-2xl shadow-lg" />
+          <Image src={asset(restaurant.logo_url ?? "/brand/logo.svg")} alt="Logo" width={56} height={56} className="rounded-2xl shadow-lg" />
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-2xl font-semibold leading-tight">{restaurant.name}</h1>
             {restaurant.tagline && <p className="truncate text-sm opacity-80">{restaurant.tagline}</p>}
@@ -204,7 +197,7 @@ export function MenuApp({ restaurant, categories, initialProducts, initialState 
             {featured.map((p) => (
               <button key={p.id} onClick={() => openProduct(p)} className="relative w-60 shrink-0 snap-start overflow-hidden rounded-2xl border bg-card text-left shadow-sm">
                 <div className="relative aspect-[4/3]">
-                  {p.image_url && <Image src={p.image_url} alt={p.name} fill sizes="240px" className="object-cover" />}
+                  {p.image_url && <Image src={asset(p.image_url)} alt={p.name} fill sizes="240px" className="object-cover" />}
                   {p.model_glb_url && <ArBadge className="absolute right-2 top-2" />}
                 </div>
                 <div className="p-3">
@@ -238,7 +231,7 @@ export function MenuApp({ restaurant, categories, initialProducts, initialState 
                 <div className="relative size-28 shrink-0 overflow-hidden rounded-xl bg-muted">
                   {p.image_url && (
                     <button onClick={() => openProduct(p)} className="absolute inset-0" aria-label={`Ver ${p.name}`}>
-                      <Image src={p.image_url} alt={p.name} fill sizes="112px" className="object-cover" />
+                      <Image src={asset(p.image_url)} alt={p.name} fill sizes="112px" className="object-cover" />
                     </button>
                   )}
                   {p.model_glb_url && p.available && (
@@ -284,7 +277,7 @@ export function MenuApp({ restaurant, categories, initialProducts, initialState 
                   poster={selected.image_url} illustrative={selected.model_is_illustrative} />
               ) : (
                 <div className="relative -mx-5 -mt-5 aspect-[4/3] overflow-hidden sm:mx-0 sm:mt-0 sm:rounded-2xl">
-                  {selected.image_url && <Image src={selected.image_url} alt={selected.name} fill sizes="(max-width: 640px) 100vw, 512px" className="object-cover" />}
+                  {selected.image_url && <Image src={asset(selected.image_url)} alt={selected.name} fill sizes="(max-width: 640px) 100vw, 512px" className="object-cover" />}
                 </div>
               )}
               {selected.model_glb_url && (
@@ -364,7 +357,7 @@ function CartSheet({ open, onOpenChange, cart, unavailable, onPlaced }: {
     keyRef.current ??= newIdempotencyKey();
     setSending(true);
     try {
-      const order = await api<{ number: number }>("/api/mesa/pedido", { items: toOrderPayload(cart.items), notes: notes.trim() || null, idempotency_key: keyRef.current });
+      const order = await customerApi.placeOrder({ items: toOrderPayload(cart.items), notes: notes.trim() || null, idempotency_key: keyRef.current });
       cart.clear(); setNotes(""); keyRef.current = null;
       onPlaced(order.number);
     } catch (e) {
@@ -424,7 +417,7 @@ function OrdersSheet({ open, onOpenChange, state, onChanged, hasBillRequest }: {
   async function cancel(orderId: string, number: number) {
     if (!confirm(`Cancelar o pedido #${number}?`)) return;
     try {
-      await api("/api/mesa/cancelar", { order_id: orderId });
+      await customerApi.cancelOrder(orderId);
       toast.success("Pedido cancelado");
       onChanged();
     } catch (e) {
@@ -435,7 +428,7 @@ function OrdersSheet({ open, onOpenChange, state, onChanged, hasBillRequest }: {
   async function requestBill() {
     setBusy(true);
     try {
-      await api("/api/mesa/chamar", { type: "request_bill" });
+      await customerApi.requestService("request_bill");
       toast.success("Fechamento solicitado! Dirija-se ao caixa para efetuar o pagamento.");
       setConfirmBill(false);
       onChanged();

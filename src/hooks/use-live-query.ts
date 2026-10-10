@@ -24,11 +24,12 @@ export function useLiveQuery<T>(key: string, fetcher: () => Promise<T>, tables: 
       setData(result);
       setError(null);
     } catch (e) {
+      console.error(`[useLiveQuery:${key}]`, e);
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [key]);
 
   useEffect(() => {
     reload();

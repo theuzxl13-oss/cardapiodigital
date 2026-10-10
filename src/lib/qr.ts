@@ -1,9 +1,10 @@
 "use client";
 
 import QRCode from "qrcode";
+import { asset } from "@/lib/asset";
 
 /** Gera QR Code PNG (data URL) com a logo do restaurante ao centro. Correção de erro alta (H). */
-export async function qrWithLogo(url: string, size = 600, logoSrc = "/brand/logo.svg"): Promise<string> {
+export async function qrWithLogo(url: string, size = 600, logoSrc = asset("/brand/logo.svg")): Promise<string> {
   const canvas = document.createElement("canvas");
   await QRCode.toCanvas(canvas, url, { errorCorrectionLevel: "H", margin: 2, width: size, color: { dark: "#1b110d", light: "#ffffff" } });
   const ctx = canvas.getContext("2d")!;
