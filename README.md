@@ -1,287 +1,451 @@
-# Sabor & Arte — Plataforma digital de restaurante
+<div align="center">
 
-Sistema completo e integrado para restaurante, pronto para demonstração comercial:
+# 🍽️ Sabor & Arte — Sistema Digital para Restaurantes
 
-| Módulo | Rota | Quem usa |
+**Cardápio por QR Code · Realidade Aumentada · Pedidos pela mesa · Garçom · Cozinha · Caixa · Gestão**
+
+Next.js 16 · React 19 · TypeScript · Tailwind CSS · Supabase (PostgreSQL, Auth, Realtime, Storage) · Three.js / model-viewer
+
+</div>
+
+---
+
+## 📑 Índice
+
+1. [O que é o sistema](#-o-que-é-o-sistema)
+2. [Como funciona — visão geral](#-como-funciona--visão-geral)
+3. [Os módulos, um por um](#-os-módulos-um-por-um)
+4. [Jornada completa de um pedido](#-jornada-completa-de-um-pedido)
+5. [Realidade aumentada](#-realidade-aumentada)
+6. [Quem pode fazer o quê (permissões)](#-quem-pode-fazer-o-quê-permissões)
+7. [Segurança e regras de negócio](#-segurança-e-regras-de-negócio)
+8. [Como colocar no ar (passo a passo)](#-como-colocar-no-ar-passo-a-passo)
+9. [Modo demonstração e acessos](#-modo-demonstração-e-acessos)
+10. [Rodar no computador (desenvolvedores)](#-rodar-no-computador-desenvolvedores)
+11. [Testes](#-testes)
+12. [Estrutura do projeto](#-estrutura-do-projeto)
+13. [Limitações e próximos passos](#-limitações-e-próximos-passos)
+
+---
+
+## 🧭 O que é o sistema
+
+Uma plataforma completa para o dia a dia de um restaurante. O cliente pede pelo próprio celular, a cozinha recebe na hora,
+o garçom é avisado quando o prato fica pronto e o caixa fecha a conta — tudo **conectado ao mesmo banco de dados e atualizado
+em tempo real**.
+
+| Para quem | O que ganha |
+|---|---|
+| **Cliente** | Cardápio bonito no celular, sem instalar app; vê o prato em 3D sobre a mesa; pede, acompanha e chama o garçom |
+| **Garçom** | Mapa das mesas, lança pedidos, recebe aviso de prato pronto e de cliente chamando |
+| **Cozinha** | Tela grande com os pedidos na ordem certa, tempo de espera e alerta sonoro |
+| **Caixa** | Conta completa da mesa, divisão, vários pagamentos, troco e comprovante |
+| **Dono / gerente** | Faturamento, mais vendidos, estoque, funcionários, QR Codes e relatórios em PDF/Excel |
+
+> 💳 **O pagamento é feito sempre no caixa**, presencialmente. O cliente não paga pelo celular.
+
+---
+
+## ⚙️ Como funciona — visão geral
+
+```
+                    ┌──────────────────────────────┐
+  📱 Cliente  ────► │  Cardápio digital (QR Code)  │ ──┐
+                    └──────────────────────────────┘   │
+                    ┌──────────────────────────────┐   │      ┌──────────────────────────┐
+  🧑‍🍳 Garçom   ────► │  Painel do garçom            │ ──┤      │      BANCO DE DADOS      │
+                    └──────────────────────────────┘   ├────► │  (Supabase / PostgreSQL) │
+                    ┌──────────────────────────────┐   │      │                          │
+  👨‍🍳 Cozinha  ────► │  Painel da cozinha (KDS)     │ ──┤      │  • guarda tudo           │
+                    └──────────────────────────────┘   │      │  • aplica as regras      │
+                    ┌──────────────────────────────┐   │      │  • avisa as telas em     │
+  💰 Caixa    ────► │  Caixa (PDV)                 │ ──┤      │    tempo real            │
+                    └──────────────────────────────┘   │      └──────────────────────────┘
+                    ┌──────────────────────────────┐   │
+  📊 Gerente  ────► │  Administração               │ ──┘
+                    └──────────────────────────────┘
+```
+
+**Três ideias fazem o sistema funcionar:**
+
+1. **Uma única fonte de verdade.** Todas as telas leem e gravam no mesmo banco. Um pedido feito no celular aparece na cozinha
+   no mesmo instante; um pagamento no caixa atualiza o dashboard do gerente.
+2. **As regras moram no banco de dados.** Preço, permissões, cancelamentos e fechamento de conta são validados no servidor.
+   Mesmo que alguém tente burlar a tela, o banco recusa.
+3. **Comanda por mesa.** Cada mesa tem **uma comanda ativa**. Pedidos do cliente (QR) e do garçom caem na mesma comanda,
+   que só é encerrada pelo caixa.
+
+---
+
+## 🧩 Os módulos, um por um
+
+### 1. 📱 Cardápio digital (cliente) — `/menu`
+
+Cada mesa tem um **QR Code exclusivo**. Ao escanear, o cliente abre o cardápio já identificado com o número da mesa.
+
+- Categorias (entradas, pratos principais, porções, bebidas, sobremesas) e destaques da casa
+- Foto, descrição, preço, ingredientes, **alergênicos** e etiquetas (vegetariano, mais pedido…)
+- **Disponibilidade em tempo real** — se a cozinha marca um item como esgotado, ele some do pedido na hora
+- **Adicionais e personalização** (ex.: ponto da carne obrigatório, bacon extra) e observações
+- Carrinho, confirmação e **acompanhamento do status**: recebido → em preparo → pronto → entregue
+- Botões **Chamar garçom** e **Solicitar fechamento da conta**
+- Vários pedidos durante a visita, todos somados na mesma comanda
+- Botão **“Ver na mesa”** para abrir o prato em 3D / realidade aumentada
+
+### 2. 🧑‍🍳 Painel do garçom — `/garcom`
+
+Feito para celular ou tablet.
+
+- **Mapa de mesas** com cores: 🟢 livre · 🟡 ocupada · 🟣 conta solicitada
+- Abrir mesa e **lançar pedidos manualmente** (para quem não quer usar o QR), com prioridade e observações
+- Lista **“Prontos para servir”** com **alerta sonoro e vibração** → botão **Entregue**
+- Lista de **chamados** dos clientes (chamar garçom / pedir a conta)
+- Valores da mesa, solicitar fechamento ao caixa, cancelar pedido (com justificativa)
+
+### 3. 👨‍🍳 Painel da cozinha (KDS) — `/cozinha`
+
+Tela escura, alto contraste e botões grandes, pensada para monitor ou tablet.
+
+- Três colunas: **Novos · Em preparo · Prontos**
+- Cada cartão mostra mesa, número do pedido, horário, **tempo decorrido** (fica amarelo/vermelho se atrasar), prioridade,
+  itens, adicionais e observações em destaque
+- Botões **Iniciar preparo** → **Pronto** (e voltar etapa, se necessário)
+- **Alerta sonoro** configurável a cada novo pedido; histórico das últimas horas
+- Marcar produtos como **indisponíveis**
+- Se dois tablets mexerem no mesmo pedido ao mesmo tempo, o sistema detecta e avisa
+
+### 4. 💰 Caixa (PDV) — `/caixa`
+
+- **Abertura de caixa** (fundo de troco), **sangria**, **suprimento** e **fechamento** com conferência e cálculo de divergência
+- Lista de comandas abertas, com busca rápida pelo número da mesa
+- Itens consumidos, **taxa de serviço** (liga/desliga), **desconto** (valor ou %)
+- **Divisão da conta**: em partes iguais ou pelos itens de cada pessoa
+- **Pagamentos parciais e combinados**: dinheiro, PIX, débito e crédito — com **cálculo de troco**
+- Confirmação antes de cada lançamento financeiro e **estorno** com autorização
+- **Encerrar comanda** libera a mesa e gera o **comprovante não fiscal** (layout de bobina 80 mm)
+
+### 5. 📊 Administração — `/admin`
+
+| Seção | O que faz |
+|---|---|
+| **Dashboard** | Faturamento do dia e do mês, ticket médio, pedidos, mais vendidos, mesas ocupadas, formas de pagamento, tempos médios, estoque baixo |
+| **Cardápio** | Cadastrar/editar produtos, preços, fotos, **modelos 3D**, categorias, adicionais e ficha técnica |
+| **Mesas** | Cadastro, ocupação atual e histórico de comandas |
+| **QR Codes** | Gera cartões com logo, número da mesa e instruções; imprime um ou todos; baixa PNG ou PDF |
+| **Funcionários** | Criar usuários, definir função, PIN de gerente, bloquear acesso, redefinir senha |
+| **Estoque** | Insumos, entradas, perdas, ajustes; **baixa automática a cada venda** pela ficha técnica; alerta de mínimo |
+| **Relatórios** | Por período, com exportação em **PDF e Excel** (vendas, produtos, caixa, cancelamentos, estoque…) |
+| **Auditoria** | Registro de quem fez o quê e quando |
+| **Configurações** | Taxa de serviço, limite de desconto, regras da mesa, alertas da cozinha, rodapé do comprovante |
+
+---
+
+## 🔄 Jornada completa de um pedido
+
+```
+ 📱 CLIENTE              👨‍🍳 COZINHA             🧑‍🍳 GARÇOM             💰 CAIXA
+ ─────────              ───────────            ──────────            ────────
+ Escaneia o QR
+ da Mesa 05
+      │
+ Vê o hambúrguer
+ em 3D na mesa
+      │
+ Pede hambúrguer
+ + refrigerante ──────► Pedido aparece
+      │                 em "Novos" 🔔
+      │                      │
+ Status: "Em  ◄──────── Iniciar preparo
+ preparação"                 │
+      │                      │
+ Status: "Pronto" ◄──── Pronto ───────────► Aviso: "Pedido
+      │                                     pronto — Mesa 05" 🔔
+      │                                           │
+ Status: "Entregue" ◄────────────────────── Entregue
+      │
+ Solicita fechamento ─────────────────────────────────────────► Comanda aparece
+                                                                destacada
+                                                                     │
+                                                                Cliente paga
+                                                                presencialmente
+                                                                     │
+                                                                Registra pagamento
+                                                                + troco
+                                                                     │
+                                                                Encerra comanda
+                                                                     │
+                         Mesa 05 volta a ficar LIVRE  ◄──────────────┘
+                         Dashboard e relatórios atualizados 📊
+```
+
+### Estados de um pedido
+
+| Status | Quem muda | Significado |
 |---|---|---|
-| Cardápio digital por QR Code + pedidos pela mesa | `/menu?mesa=05&k=<token>` | Cliente (sem instalar app) |
-| Visualização dos pratos em **realidade aumentada** | botão “Visualizar na minha mesa” | Cliente |
-| Painel do garçom | `/garcom` | Garçom |
-| Painel da cozinha (KDS) | `/cozinha` | Cozinha |
-| Caixa (PDV) | `/caixa` | Operador de caixa |
-| Administração (dashboard, cardápio, mesas, QR Codes, funcionários, estoque, relatórios, auditoria, configurações) | `/admin` | Administrador / gerente |
+| 🔵 **Pedido recebido** | automático | Chegou na cozinha |
+| 🟡 **Em preparação** | Cozinha | Começou a ser preparado |
+| 🟢 **Pronto para servir** | Cozinha | Garçom é notificado |
+| ⚪ **Entregue** | Garçom | Está na mesa |
+| 🔴 **Cancelado** | Garçom/Caixa/Gerente | Sempre com justificativa registrada |
 
-Todos os módulos usam o **mesmo banco PostgreSQL (Supabase)** e se atualizam em **tempo real** (Supabase Realtime).
-O pagamento é feito exclusivamente no caixa.
+### Estados de uma comanda
 
-> Stack: Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · componentes no padrão shadcn/ui ·
-> Supabase (PostgreSQL, Auth, Realtime, Storage) · `@google/model-viewer` + Three.js (WebXR, Scene Viewer, AR Quick Look) ·
-> Recharts · jsPDF · ExcelJS · Vitest · Playwright.
+`Aberta` → `Fechamento solicitado` (cliente ou garçom pediu a conta) → `Encerrada` (caixa) — e a mesa fica livre.
 
 ---
 
-## Sumário
+## 🥽 Realidade aumentada
 
-1. [Início rápido](#1-início-rápido)
-2. [Configuração do Supabase](#2-configuração-do-supabase)
-3. [Publicação na Vercel](#3-publicação-na-vercel)
-4. [Modo demonstração](#4-modo-demonstração)
-5. [Funcionalidades](#5-funcionalidades)
-6. [Realidade aumentada](#6-realidade-aumentada)
-7. [Segurança e regras de negócio](#7-segurança-e-regras-de-negócio)
-8. [Testes](#8-testes)
-9. [Estrutura de pastas](#9-estrutura-de-pastas)
-10. [Limitações e o que falta para operação real](#10-limitações-e-o-que-falta-para-operação-real)
+O cliente toca em **“Ver na mesa”**, gira o prato em 3D e depois toca em **“Visualizar na minha mesa”**: a câmera abre e o
+prato aparece **sobre a mesa, em tamanho real**. Ele pode andar em volta para ver de vários ângulos.
 
-Documentação técnica detalhada (modelo de dados, funções, políticas): [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md).
+| Aparelho | Tecnologia usada |
+|---|---|
+| Android (Chrome) | WebXR ou Google Scene Viewer (ARCore) |
+| iPhone / iPad (Safari) | Apple AR Quick Look (arquivo USDZ) |
+| Aparelhos sem AR | Visualização 3D interativa (girar e ampliar) |
+
+- É **realidade aumentada de verdade**, não uma imagem colada sobre a câmera.
+- Os modelos são feitos **em metros** (o hambúrguer tem ~12 cm, o prato ~27 cm), por isso aparecem no tamanho real.
+- O projeto inclui **30 modelos 3D ilustrativos**, um para cada prato do cardápio de demonstração. O cliente vê o aviso
+  *“Modelo 3D ilustrativo”*.
+- **Para uso real:** fotografe/escaneie os pratos (apps como Polycam ou RealityScan), exporte em **GLB** (e **USDZ** para iPhone)
+  e envie em **Administração → Cardápio → Imagem e 3D/AR**.
+- ⚠️ A AR só funciona com o site publicado em **HTTPS** (a Vercel já fornece).
 
 ---
 
-## 1. Início rápido
+## 👥 Quem pode fazer o quê (permissões)
 
-Pré-requisitos: Node.js 20+ e um projeto Supabase (nuvem ou local com Supabase CLI).
+| Ação | Cliente | Garçom | Cozinha | Caixa | Gerente | Admin |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|
+| Ver cardápio e fazer pedidos da **própria** mesa | ✅ | ✅ | | ✅ | ✅ | ✅ |
+| Abrir mesa / lançar pedido | | ✅ | | ✅ | ✅ | ✅ |
+| Iniciar preparo / marcar pronto | | | ✅ | | ✅ | ✅ |
+| Marcar entregue | | ✅ | | | ✅ | ✅ |
+| Cancelar pedido **antes** do preparo | ✅¹ | ✅ | | ✅ | ✅ | ✅ |
+| Cancelar pedido **depois** do preparo | | 🔑 | | 🔑 | ✅ | ✅ |
+| Marcar produto indisponível | | ✅ | ✅ | | ✅ | ✅ |
+| Receber pagamentos e fechar conta | | | | ✅ | ✅ | ✅ |
+| Desconto acima do limite / estorno / fechar com saldo | | | | 🔑 | ✅ | ✅ |
+| Cardápio, mesas, estoque, relatórios | | | | | ✅ | ✅ |
+| Funcionários e configurações | | | | | | ✅ |
+
+¹ apenas pedidos feitos no próprio celular · 🔑 = exige o **PIN de um gerente**
+
+---
+
+## 🔒 Segurança e regras de negócio
+
+**Proteções**
+
+- 🔐 **Login individual** para cada funcionário; ninguém consegue se cadastrar sozinho.
+- 🧾 **Preços calculados no servidor.** O celular envia só *qual* produto e *quantos*; o valor vem do cardápio oficial.
+- 🪑 **Mesa protegida.** O QR Code contém um código secreto. Trocar `?mesa=05` por `?mesa=02` no endereço **não** dá acesso à
+  outra mesa. A sessão do cliente expira e é cancelada quando a conta é encerrada.
+- 🔁 **Sem pedidos ou pagamentos duplicados**, mesmo com duplo clique ou internet instável.
+- 🗝️ **Nenhuma chave secreta no navegador.** Chaves privilegiadas ficam só no servidor.
+- 📜 **Auditoria** de pagamentos, estornos, descontos, cancelamentos, caixa, preços e usuários.
+
+**Regras garantidas pelo banco de dados**
+
+- Uma mesa nunca tem duas comandas ativas.
+- O preço do pedido fica gravado no momento da confirmação — mudar o cardápio depois **não altera** pedidos antigos.
+- A cozinha não altera valores; o garçom não acessa configurações.
+- Cancelamentos registram **quem fez, quem autorizou e o motivo**.
+- A comanda **não fecha** com saldo pendente (exceto com justificativa + PIN de gerente) nem com pedidos ainda na cozinha.
+- Não é possível pagar mais do que o saldo nem registrar o mesmo pagamento duas vezes.
+- O estoque baixa a cada venda e volta em caso de cancelamento.
+
+---
+
+## 🚀 Como colocar no ar (passo a passo)
+
+> O link do GitHub mostra apenas o **código**. Para usar o sistema é preciso publicá-lo.
+> São necessárias duas contas gratuitas: **Supabase** (banco de dados) e **Vercel** (hospedagem). Leva cerca de 15 minutos.
+
+### Passo 1 — Criar o banco de dados (Supabase)
+
+1. Crie uma conta em [supabase.com](https://supabase.com) → **New project**.
+2. Abra **SQL Editor** e execute, **um por vez e nesta ordem**, o conteúdo dos arquivos:
+
+   | Ordem | Arquivo |
+   |:-:|---|
+   | 1 | `supabase/migrations/20261010000001_schema.sql` |
+   | 2 | `supabase/migrations/20261010000002_helpers.sql` |
+   | 3 | `supabase/migrations/20261010000003_orders.sql` |
+   | 4 | `supabase/migrations/20261010000004_cashier.sql` |
+   | 5 | `supabase/migrations/20261010000005_admin_reports.sql` |
+   | 6 | `supabase/migrations/20261010000006_security.sql` |
+   | 7 | `supabase/migrations/20261010000007_realtime_storage.sql` |
+   | 8 | `supabase/seed.sql` *(cardápio, mesas e estoque de demonstração)* |
+
+3. Em **Authentication → Sign In / Providers → Email**, desligue **“Allow new users to sign up”**.
+4. Em **Project Settings → API**, copie: **Project URL**, **anon key** e **service_role key**.
+
+### Passo 2 — Publicar o site (Vercel)
+
+1. Crie uma conta em [vercel.com](https://vercel.com) entrando com o GitHub.
+2. **Add New → Project** → escolha o repositório `cardapiodigital`.
+3. Em **Environment Variables**, cadastre:
+
+   | Nome | Valor |
+   |---|---|
+   | `NEXT_PUBLIC_SUPABASE_URL` | Project URL do Supabase |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon key |
+   | `SUPABASE_SERVICE_ROLE_KEY` | service_role key *(marque como Sensitive)* |
+   | `NEXT_PUBLIC_RESTAURANT_ID` | `00000000-0000-4000-a000-000000000001` |
+   | `NEXT_PUBLIC_DEMO_MODE` | `true` |
+
+4. Clique em **Deploy**. Você receberá um endereço como `https://cardapiodigital-xxx.vercel.app`.
+5. Adicione a variável `NEXT_PUBLIC_SITE_URL` com esse endereço e faça **Redeploy** (é o endereço impresso nos QR Codes).
+6. No Supabase, em **Authentication → URL Configuration**, coloque o mesmo endereço em **Site URL**.
+
+### Passo 3 — Criar funcionários e dados de demonstração
+
+No computador (com [Node.js](https://nodejs.org) instalado), dentro da pasta do projeto:
 
 ```bash
 npm install
-cp .env.example .env.local        # preencha as chaves do Supabase
-# aplique migrações e seed (seção 2)
-npm run seed:demo                 # cria funcionários, histórico fictício e pedidos ao vivo
-npm run dev                       # http://localhost:3000
-```
-
-## 2. Configuração do Supabase
-
-### Opção A — Supabase na nuvem
-
-1. Crie um projeto em <https://supabase.com>.
-2. Em **Project Settings → API**, copie `Project URL`, a chave **anon/publishable** e a **service_role** para `.env.local`.
-3. Aplique o banco (escolha uma forma):
-   - **CLI:** `npx supabase link --project-ref <ref>` e `npx supabase db push`; depois rode o conteúdo de `supabase/seed.sql` no **SQL Editor**.
-   - **SQL Editor:** execute, em ordem, os arquivos de `supabase/migrations/` e depois `supabase/seed.sql`.
-4. Em **Authentication → Providers → Email**, desative “Allow new users to sign up” (os funcionários são criados pelo administrador).
-5. Rode `npm run seed:demo` (usa a service_role apenas no seu computador).
-6. Realtime: a migração `…07_realtime_storage.sql` já adiciona as tabelas à publicação `supabase_realtime`.
-   Confira em **Database → Publications** se necessário.
-7. Storage: a mesma migração cria o bucket público `menu-media` (fotos e modelos 3D), com escrita restrita a gerente/admin.
-
-### Opção B — Supabase local (Docker)
-
-```bash
-npx supabase start          # sobe Postgres, Auth, Realtime, Storage; aplica migrações e seed.sql
-npx supabase status         # mostra URL e chaves para o .env.local
+cp .env.example .env.local      # preencha com as chaves do Supabase
 npm run seed:demo
 ```
 
-### Variáveis de ambiente
+Pronto! Abra o endereço da Vercel. ✅
 
-Veja [`.env.example`](.env.example). Resumo:
+---
 
-| Variável | Onde é usada | Observação |
+## 🎬 Modo demonstração e acessos
+
+Com `NEXT_PUBLIC_DEMO_MODE=true`, a página inicial mostra os **links de todas as mesas** e os **acessos de teste**.
+
+**Senha de todos os usuários:** `Demo@1234` · **PIN de gerente (admin):** `1234`
+
+| Função | E-mail | Tela |
 |---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | navegador e servidor | públicas; protegidas por RLS |
-| `SUPABASE_SERVICE_ROLE_KEY` | **somente servidor** (criação/bloqueio de funcionários, seed) | nunca use prefixo `NEXT_PUBLIC_` |
-| `NEXT_PUBLIC_SITE_URL` | URLs impressas nos QR Codes | use o domínio público em produção |
-| `NEXT_PUBLIC_RESTAURANT_ID` | restaurante atendido pela instalação | seed usa `00000000-0000-4000-a000-000000000001` |
-| `NEXT_PUBLIC_DEMO_MODE` | exibe hub de demonstração e atalhos de login | `false` em produção |
-| `DEMO_PASSWORD` | senha dos usuários do seed | padrão `Demo@1234` |
+| Administrador | `admin@saborarte.demo` | `/admin` |
+| Caixa | `caixa1@saborarte.demo` · `caixa2@saborarte.demo` | `/caixa` |
+| Cozinha | `cozinha1@saborarte.demo` · `cozinha2@saborarte.demo` | `/cozinha` |
+| Garçom | `garcom1@saborarte.demo` … `garcom5@saborarte.demo` | `/garcom` |
 
-## 3. Publicação na Vercel
+**O que vem pronto:** 15 mesas · 30 produtos em 5 categorias · 30 modelos 3D · 36 insumos com ficha técnica ·
+10 funcionários · 30 dias de vendas fictícias (marcadas como demonstração nos relatórios) · pedidos em andamento nas mesas
+02, 03, 08 e 11. **A Mesa 05 fica livre** para você testar.
 
-1. Envie o repositório ao GitHub e importe em <https://vercel.com/new> (framework detectado: Next.js).
-2. Em **Settings → Environment Variables**, cadastre as variáveis da tabela acima (a `SUPABASE_SERVICE_ROLE_KEY` como *Sensitive*).
-3. Defina `NEXT_PUBLIC_SITE_URL` com o domínio final (ex.: `https://sabor-arte.vercel.app`) **antes** de imprimir os QR Codes.
-4. Deploy. No Supabase, em **Authentication → URL Configuration**, informe o mesmo domínio em *Site URL*.
-5. Para produção real: `NEXT_PUBLIC_DEMO_MODE=false`, troque as senhas/PIN de demonstração e remova os usuários `@saborarte.demo`.
+### Roteiro sugerido de apresentação
 
-> HTTPS é obrigatório para AR (WebXR e Scene Viewer exigem URL pública segura). A Vercel já fornece HTTPS.
+1. 📱 No celular, abra o link da **Mesa 05**.
+2. Toque em **Ver na mesa** no hambúrguer → **Visualizar na minha mesa**.
+3. Adicione hambúrguer e refrigerante → **Confirmar pedido**.
+4. 💻 Em outra aba, entre como **cozinha1** → **Iniciar preparo** → **Pronto**.
+5. Entre como **garcom1** → o pedido aparece em “Prontos para servir” → **Entregue**.
+6. 📱 No celular: **Conta → Solicitar fechamento da conta**.
+7. Entre como **caixa1** → **Abrir caixa** → Mesa 05 → registre o pagamento → **Encerrar comanda**.
+8. Entre como **admin** → veja o dashboard atualizado.
 
-## 4. Modo demonstração
+> ⚠️ Antes de usar em operação real: `NEXT_PUBLIC_DEMO_MODE=false`, troque senhas e PIN e remova os usuários `@saborarte.demo`.
 
-`npm run seed:demo` cria (todos marcados como fictícios):
+---
 
-- **Restaurante** “Sabor & Arte Bistrô” (dados e endereço fictícios), **15 mesas**, **5 categorias**, **30 produtos** com adicionais, alergênicos,
-  fichas técnicas e **30 modelos 3D**;
-- **36 insumos** com estoque e mínimos;
-- **Funcionários** (senha `Demo@1234`):
+## 💻 Rodar no computador (desenvolvedores)
 
-| Papel | E-mail |
-|---|---|
-| Administrador (PIN de gerente **1234**) | `admin@saborarte.demo` |
-| Caixa (2) | `caixa1@saborarte.demo`, `caixa2@saborarte.demo` |
-| Cozinha (2) | `cozinha1@saborarte.demo`, `cozinha2@saborarte.demo` |
-| Garçom (5) | `garcom1@saborarte.demo` … `garcom5@saborarte.demo` |
-
-- **Histórico de 30 dias** (comandas, pedidos, pagamentos, sessões de caixa com sangrias e divergências) com `is_demo = true` —
-  relatórios e dashboard sinalizam “Inclui dados fictícios de demonstração” e permitem excluí-los;
-- **Pedidos ao vivo** nas mesas 02, 03, 08 e 11 (recebido, em preparo, pronto). A **Mesa 05 fica livre** para o roteiro abaixo.
-
-Com `NEXT_PUBLIC_DEMO_MODE=true`, a página inicial lista os acessos e os links (QR) de todas as mesas.
-
-### Roteiro de demonstração (o mesmo do teste E2E automatizado)
-
-1. Na página inicial, abra **Mesa 05** (equivale a escanear o QR) no celular.
-2. Toque em **Ver na mesa** no hambúrguer → modelo 3D → **Visualizar na minha mesa** (AR em aparelho compatível).
-3. Adicione hambúrguer (escolha o ponto) e refrigerante → **Confirmar pedido**.
-4. Em outra aba, entre como `cozinha1` → **Iniciar preparo** → **Pronto**.
-5. Como `garcom1`, o pedido aparece em “Prontos para servir” (com som) → **Entregue**.
-6. No celular: **Conta → Solicitar fechamento da conta**.
-7. Como `caixa1`: **Abrir caixa** → comanda da Mesa 05 → pagamento (dinheiro com troco, PIX, cartão, divisão) → **Encerrar comanda**.
-8. A mesa volta a ficar livre; o comprovante não fiscal é exibido; o dashboard do `admin` reflete a venda.
-
-## 5. Funcionalidades
-
-**Cliente (cardápio QR)** — capa e identidade visual, categorias, destaques, fotos, descrição, ingredientes, alergênicos, etiquetas
-(vegetariano etc.), disponibilidade em tempo real, adicionais com regras (obrigatório/máximo), observações por item e por pedido,
-carrinho, confirmação, acompanhamento de status (recebido → preparo → pronto → entregue), cancelamento antes do preparo,
-chamar garçom, solicitar fechamento, vários pedidos na mesma comanda, notificações de status.
-
-**Garçom** — login individual, mapa de mesas (livre/ocupada/conta solicitada), abertura de mesa, lançamento manual de pedidos
-(com prioridade e observações) na mesma comanda do QR, pedidos em andamento, “prontos para servir” com alerta sonoro/vibração/
-notificação, marcar entregue, chamados de clientes, valores da mesa, solicitar fechamento ao caixa, reabrir comanda,
-liberar mesa aberta por engano, cancelamento com justificativa (PIN de gerente após início do preparo).
-
-**Cozinha (KDS)** — interface escura de alto contraste e botões grandes; colunas Novos/Em preparo/Prontos; número do pedido, mesa,
-horário, tempo decorrido com alerta de atraso configurável, prioridade, itens, adicionais e observações em destaque; alerta sonoro
-configurável (liga/desliga e volume); histórico das últimas 3 horas; marcação de produtos indisponíveis; detecção de conflito quando
-dois tablets alteram o mesmo pedido.
-
-**Caixa (PDV)** — abertura/fechamento de caixa com conferência por forma de pagamento e cálculo de divergência; sangria e suprimento;
-comandas abertas com busca por mesa/comanda; itens consumidos; taxa de serviço configurável (liga/desliga por comanda); desconto
-(valor ou %) com limite e autorização por PIN acima dele; divisão igualitária e por itens (com taxa proporcional); pagamentos
-parciais e combinados (dinheiro, PIX, débito, crédito); troco com sugestão de cédulas; confirmação antes de cada lançamento;
-estorno com autorização; encerramento bloqueado com saldo pendente (salvo procedimento autorizado e justificado);
-comprovante não fiscal 80 mm (pré-conta e final) e reimpressão.
-
-**Administração** — dashboard em tempo real (faturamento diário/mensal, pedidos, ticket médio, mais vendidos, mesas ocupadas,
-pedidos em preparo/concluídos, formas de pagamento, categorias, origem dos pedidos, tempos médios, estoque mínimo);
-cardápio (CRUD, exclusão lógica, preços, imagens e modelos 3D com upload, adicionais, ficha técnica com custo, disponibilidade,
-destaques, categorias); mesas (cadastro, ocupação, comandas); **QR Codes** (logo, número, instruções, impressão individual e em
-lote, PNG e PDF, regeneração de token); funcionários (criação, papéis, PIN de supervisor, bloqueio, redefinição de senha,
-produtividade); estoque (insumos, entradas/perdas/ajustes, baixa automática por venda pela ficha técnica, devolução em
-cancelamentos, alertas de mínimo, valor em estoque); relatórios por período em **PDF e Excel** (financeiro, vendas, produtos,
-categorias, operadores, garçons, sessões de caixa e divergências, cancelamentos, consumo de estoque); auditoria; configurações.
-
-## 6. Realidade aumentada
-
-Implementada com [`<model-viewer>`](https://modelviewer.dev) (Three.js por baixo), com integração **real** — não é uma imagem 2D sobre a câmera:
-
-| Plataforma | Tecnologia | Requisito |
-|---|---|---|
-| Android (Chrome) | **WebXR** (AR na própria página) ou **Scene Viewer** (Google ARCore) | aparelho com ARCore, HTTPS |
-| iPhone/iPad (Safari) | **AR Quick Look** com arquivo **USDZ** | iOS 12+ |
-| Demais / sem AR | Visualização **3D interativa** (girar, ampliar) | qualquer navegador moderno |
-
-- `ar-scale="fixed"` mantém a **escala real**: os modelos são construídos em metros (hambúrguer ≈ 12 cm, prato raso 27 cm).
-- `ar-placement="floor"` posiciona o prato em superfícies horizontais (a mesa).
-- Os 30 modelos de demonstração (`public/models/*.glb` + `*.usdz`) são **ilustrativos e procedurais**, gerados por
-  `npm run models:generate` (`scripts/generate-models.mjs`, código próprio, licença MIT) — cada um representa de forma
-  estilizada o prato cadastrado (hambúrguer com camadas, pizza margherita, petit gâteau etc.). O cliente vê o aviso
-  “Modelo 3D ilustrativo”. As fotos de demonstração são renders desses modelos (`scripts/render-thumbnails.mjs`).
-- **Para operação real**: faça fotogrametria dos pratos (ex.: Polycam, RealityScan, Object Capture da Apple) ou contrate
-  modelagem; exporte GLB (até ~5 MB, texturas 1–2K) e USDZ, e envie em **Admin → Cardápio → Imagem e 3D/AR**.
-  Desmarque “Modelo ilustrativo” quando o modelo for fiel ao prato. Sem USDZ, o model-viewer gera um automaticamente no iOS.
-
-## 7. Segurança e regras de negócio
-
-- **Autenticação** Supabase Auth (e-mail/senha); cadastro público desativado; perfil e papel definidos via `app_metadata`
-  (o próprio usuário não consegue se promover).
-- **RBAC** em três camadas: proxy do Next.js (rotas), layouts no servidor e — a camada definitiva — **RLS + funções no banco**.
-- **Escritas operacionais apenas por funções transacionais** (`SECURITY DEFINER`): pedidos, status, cancelamentos, pagamentos,
-  fechamento, caixa e estoque. As tabelas operacionais não têm permissão de escrita direta.
-- **Preços calculados no servidor** a partir do cardápio vigente; o cliente envia só IDs e quantidades. Preço, nome e adicionais
-  ficam gravados no item (snapshot) — mudanças futuras no cardápio não alteram pedidos.
-- **Sessões de mesa seguras**: o QR contém um token secreto da mesa; ao escanear, o servidor cria uma sessão e guarda só o hash
-  no banco; o token da sessão fica em **cookie httpOnly**. Trocar `?mesa=` na URL não dá acesso a outra mesa. A sessão expira e é
-  revogada no encerramento da comanda. Limite de dispositivos por mesa e de pedidos por sessão (anti-abuso).
-- **Idempotência**: pedidos e pagamentos usam chave única; duplo clique ou reenvio de rede não duplica. Comanda bloqueada
-  (`FOR UPDATE`) durante pagamento e fechamento.
-- **Uma comanda ativa por mesa** garantida por índice único parcial.
-- **Cancelamento** exige justificativa; após o início do preparo exige gerente ou PIN de supervisor; registra responsável e autorizador.
-- **Cozinha** não altera valores (trigger impede mudar qualquer coluna além de disponibilidade); **garçom** não acessa configurações.
-- **Fechamento** bloqueado com saldo pendente ou pedidos ainda na cozinha; saldo pendente só com justificativa + autorização.
-- **Auditoria** (`audit_log`) de pagamentos, estornos, descontos, cancelamentos, caixa, alterações de cardápio/preços, mesas e usuários.
-- Nenhuma chave privilegiada no navegador; `service_role` só em Server Actions após verificar que o usuário é administrador.
-- Cabeçalhos de segurança e proteção de origem (CSRF) nas rotas da mesa.
-
-## 8. Testes
+**Requisitos:** Node.js 20+ e um projeto Supabase (nuvem, ou local com Docker).
 
 ```bash
-npm run typecheck
-npm run test:unit                  # carrinho, divisão de conta, troco, parsing de valores
+npm install
+cp .env.example .env.local     # chaves do Supabase
+npm run seed:demo
+npm run dev                    # http://localhost:3000
+```
 
-# Regras de negócio contra PostgreSQL real com as migrações (36 testes no total):
-sudo service postgresql start      # ou qualquer PostgreSQL 15+
+Supabase local (Docker): `npx supabase start` aplica migrações e seed automaticamente; `npx supabase status` mostra as chaves.
+
+| Comando | O que faz |
+|---|---|
+| `npm run dev` | Servidor de desenvolvimento |
+| `npm run build` / `npm start` | Build e servidor de produção |
+| `npm run typecheck` | Verificação de tipos |
+| `npm test` | Testes (unitários + banco, se `DATABASE_URL` estiver definida) |
+| `npm run seed:demo` | Funcionários, histórico e pedidos de demonstração |
+| `npm run models:generate` | Regera os modelos 3D de demonstração |
+| `npm run db:local:setup` | Cria banco PostgreSQL local para os testes |
+
+Variáveis de ambiente: veja [`.env.example`](.env.example).
+
+---
+
+## 🧪 Testes
+
+| Tipo | Onde | O que cobre |
+|---|---|---|
+| **Unitários** | `tests/unit/` | Carrinho, divisão de conta, troco, leitura de valores |
+| **Regras de negócio** | `tests/db/` | 28 cenários no PostgreSQL real: preços no servidor, duplicidade, isolamento entre mesas, permissões, PIN, caixa, fechamento, estoque, relatórios |
+| **Ponta a ponta** | `tests/e2e/` | Navegador automatizado percorrendo o roteiro completo, do QR Code ao relatório |
+
+```bash
+npm run test:unit
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/restaurante_test npm run db:local:setup
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/restaurante_test npm test
-
-# Ponta a ponta (Playwright) com o app rodando e o seed aplicado:
-npm i -D playwright-core && npx playwright install chromium
-CHROMIUM_PATH=$(node -e "console.log(require('playwright-core').chromium.executablePath())") node tests/e2e/full-flow.mjs
+node tests/e2e/full-flow.mjs   # com o app rodando e o seed aplicado (requer playwright-core + Chromium)
 ```
 
-Os testes de banco cobrem: QR inválido, comanda única por mesa, RLS para anônimos, preço calculado no servidor, adicionais
-obrigatórios/inválidos, produto indisponível, idempotência concorrente, snapshot de preço, isolamento entre mesas, baixa e
-devolução de estoque, fluxo de status com papéis, conflito de atualização simultânea, cancelamento com PIN, permissões da
-cozinha e do garçom, caixa obrigatório, desconto com limite, pagamentos parciais/combinados/troco/duplicidade, encerramento,
-invalidação da sessão do cliente, bloqueio com pedidos em preparo, fechamento forçado, estorno, divergência de caixa,
-relatórios e proteção das funções de demonstração.
+---
 
-O teste E2E percorre os 21 passos do roteiro (cliente com modelo 3D carregado, cozinha, garçom, caixa com troco, encerramento,
-mesa liberada, sessão invalidada, dashboard e telas administrativas, bloqueio de acesso), gerando capturas de tela.
-
-## 9. Estrutura de pastas
+## 🗂️ Estrutura do projeto
 
 ```
-├── public/
-│   ├── brand/                 logo e capa
-│   ├── images/products/       imagens dos pratos (renders dos modelos de demonstração)
-│   └── models/                modelos 3D .glb (Android/WebXR) e .usdz (iOS)
-├── scripts/
-│   ├── generate-models.mjs    gera os modelos 3D procedurais em escala real
-│   ├── render-thumbnails.mjs  renderiza as imagens dos produtos
-│   ├── seed-demo.mjs          funcionários, histórico e pedidos de demonstração
-│   └── local-db.sh            banco local para testes
+cardapiodigital/
 ├── src/
-│   ├── app/
-│   │   ├── page.tsx           início / hub de demonstração
-│   │   ├── login/             login dos funcionários
-│   │   ├── menu/              cardápio do cliente (QR)
-│   │   ├── api/mesa/          rotas do cliente (entrar, estado, pedido, cancelar, chamar)
-│   │   ├── garcom/            painel do garçom
-│   │   ├── cozinha/           KDS
-│   │   ├── caixa/             PDV, comanda e comprovante
-│   │   └── admin/             dashboard, produtos, mesas, qrcodes, funcionarios, estoque, relatorios, auditoria, configuracoes
-│   ├── components/
-│   │   ├── ui/                componentes base (padrão shadcn/ui)
-│   │   ├── menu/              cardápio, carrinho, conta, visualizador AR
-│   │   ├── order/             seleção de adicionais, composer do garçom, lista de pedidos
-│   │   ├── waiter/ kitchen/ cashier/ admin/ staff/
-│   ├── hooks/                 tempo real (useLiveQuery), alertas sonoros, relógio
-│   ├── lib/                   clientes Supabase, auth, API, carrinho, cobrança, QR, formatação, tipos
-│   └── proxy.ts               proteção de rotas e renovação de sessão
+│   ├── app/                     ← telas (rotas)
+│   │   ├── page.tsx             início / hub de demonstração
+│   │   ├── login/               login dos funcionários
+│   │   ├── menu/                📱 cardápio do cliente
+│   │   ├── api/mesa/            rotas seguras do cliente (pedido, estado, chamar, cancelar)
+│   │   ├── garcom/              🧑‍🍳 painel do garçom
+│   │   ├── cozinha/             👨‍🍳 KDS
+│   │   ├── caixa/               💰 PDV, comanda e comprovante
+│   │   └── admin/               📊 dashboard e gestão
+│   ├── components/              ← componentes visuais de cada módulo
+│   ├── hooks/                   tempo real, alertas sonoros
+│   ├── lib/                     conexão Supabase, regras de carrinho/conta, QR Code, formatação
+│   └── proxy.ts                 proteção das áreas restritas
 ├── supabase/
-│   ├── migrations/            001 esquema · 002 auxiliares · 003 pedidos · 004 caixa · 005 admin/relatórios · 006 segurança · 007 realtime/storage
-│   ├── seed.sql               dados de demonstração e geradores de histórico
-│   └── config.toml            Supabase CLI
-├── tests/
-│   ├── unit/                  lógica pura
-│   ├── db/                    regras de negócio no PostgreSQL (shim do Supabase incluso)
-│   └── e2e/                   fluxo completo com Playwright
-└── docs/ARQUITETURA.md
+│   ├── migrations/              ← banco de dados: tabelas, regras, permissões
+│   ├── seed.sql                 dados de demonstração
+│   └── config.toml
+├── public/
+│   ├── models/                  modelos 3D (.glb Android / .usdz iPhone)
+│   ├── images/products/         imagens dos pratos
+│   └── brand/                   logo e capa
+├── scripts/                     seed, geração de modelos 3D e imagens
+├── tests/                       unit · db · e2e
+└── docs/ARQUITETURA.md          documentação técnica detalhada
 ```
 
-## 10. Limitações e o que falta para operação real
+📘 Detalhes técnicos (tabelas, funções do banco, políticas de acesso): **[docs/ARQUITETURA.md](docs/ARQUITETURA.md)**
 
-| Item | Situação nesta versão | Para operação real |
+---
+
+## 🚧 Limitações e próximos passos
+
+Recursos que dependem de serviços externos estão **preparados e claramente sinalizados** na interface:
+
+| Recurso | Hoje | Para operação real |
 |---|---|---|
-| **Documento fiscal (NFC-e/SAT)** | Comprovante **não fiscal**, identificado como tal. Tabela `fiscal_documents` preparada. | Integrar emissor homologado (ex.: Focus NFe, PlugNotas, NFE.io, Tecnospeed) após o pagamento; certificado digital A1 e cadastro na SEFAZ conforme a UF; consultar contador. |
-| **Impressora térmica** | Impressão pelo navegador em layout 80 mm (impressora instalada no sistema). | Para impressão silenciosa/ESC-POS: QZ Tray, PrintNode ou agente local; impressão automática de comanda na cozinha. |
-| **PIX** | Registro manual com aviso “integração demonstrativa”. | Cobrança dinâmica com QR e webhook de confirmação (API Pix do banco/PSP). |
-| **Cartões (TEF/POS)** | Registro manual após aprovação na maquininha. | Integração TEF (SiTef, PayGo) ou maquininha com API (Stone, Cielo LIO etc.). |
-| **Modelos 3D** | 30 modelos ilustrativos procedurais. | Fotogrametria/modelagem dos pratos reais e upload pelo admin. |
-| **Fotos** | Renders dos modelos ilustrativos. | Fotografia profissional e upload pelo admin. |
-| **Atualização do cliente** | Status da comanda por consulta a cada 5 s (o token fica em cookie httpOnly, fora do alcance do Realtime no navegador); disponibilidade de produtos via Realtime. | Opcional: canal Realtime *broadcast* privado por comanda. |
-| **Abertura remota da mesa** | Quem fotografar o QR poderia abrir a mesa remotamente. | Desative “Cliente pode abrir a mesa pelo QR” em Configurações (garçom abre a mesa) e/ou regenere tokens periodicamente. |
-| **PIN de supervisor** | Hash bcrypt; sem limite de tentativas no banco. | Limitar tentativas (ex.: rate limiting na borda) e PINs de 6+ dígitos. |
-| **Multiestabelecimento** | Todas as tabelas e políticas já usam `restaurant_id`; a instalação atende um restaurante (`NEXT_PUBLIC_RESTAURANT_ID`). | Resolver restaurante por domínio/slug, cadastro de restaurantes e planos (SaaS). |
-| **Offline** | Requer internet. | PWA com fila local para o KDS/garçom, se necessário. |
+| **Nota fiscal (NFC-e/SAT)** | Comprovante **não fiscal** (identificado como tal); estrutura do banco já preparada | Integrar emissor homologado + certificado digital (consultar contador) |
+| **Impressora térmica** | Impressão pelo navegador em layout 80 mm | QZ Tray / PrintNode para impressão direta (ESC/POS) |
+| **PIX** | Registro manual após conferir no banco | Cobrança com QR dinâmico e confirmação automática |
+| **Cartão** | Registro manual após aprovação na maquininha | Integração TEF ou maquininha com API |
+| **Modelos 3D e fotos** | Ilustrativos (demonstração) | Fotogrametria e fotos reais, enviadas pelo admin |
+| **QR fotografado** | Quem tiver foto do QR poderia abrir a mesa de fora | Desligar “cliente abre a mesa” em Configurações (garçom abre) |
+| **PIN de gerente** | Sem limite de tentativas | Limitar tentativas e usar PIN de 6+ dígitos |
+| **Vários restaurantes** | Banco já preparado (`restaurant_id` em tudo); instalação atende um restaurante | Cadastro de restaurantes por domínio e planos (SaaS) |
+| **Sem internet** | Requer conexão | Modo offline (PWA) para cozinha e garçom |
+
+---
+
+<div align="center">
+
+Dados, nomes e endereço da demonstração são **fictícios**.
+
+</div>
