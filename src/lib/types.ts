@@ -114,6 +114,7 @@ export interface Tab {
   service_fee_pct: number;
   discount_amount: number;
   discount_reason: string | null;
+  forced_close_reason: string | null;
   is_demo: boolean;
 }
 
