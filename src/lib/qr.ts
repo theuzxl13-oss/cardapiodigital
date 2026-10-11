@@ -67,3 +67,46 @@ export function downloadDataUrl(dataUrl: string, filename: string) {
   a.download = filename;
   a.click();
 }
+
+/**
+ * Endereço público usado nos QR Codes: NEXT_PUBLIC_SITE_URL quando definido;
+ * senão, o endereço atual do navegador (incluindo o basePath da instalação).
+ */
+export function publicSiteUrl() {
+  const env = process.env.NEXT_PUBLIC_SITE_URL;
+  if (env) return env.replace(/\/$/, "");
+  return window.location.origin + (process.env.NEXT_PUBLIC_BASE_PATH ?? "");
+}
+
+export function tableMenuUrl(siteUrl: string, tableNumber: number, token: string) {
+  return `${siteUrl}/menu?mesa=${String(tableNumber).padStart(2, "0")}&k=${token}`;
+}
+
+/** PDF A4 com 4 cartões por página (2x2, 85 x 117 mm), com linha de corte. */
+export async function downloadCardsPdf(cards: { number: number; dataUrl: string }[], filename: string) {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  cards.forEach((c, i) => {
+    if (i > 0 && i % 4 === 0) doc.addPage();
+    const slot = i % 4;
+    const x = 15 + (slot % 2) * 95, y = 20 + Math.floor(slot / 2) * 135;
+    doc.addImage(c.dataUrl, "PNG", x, y, 85, 117);
+    doc.setDrawColor(200);
+    doc.setLineDashPattern([1, 1], 0);
+    doc.rect(x - 2, y - 2, 89, 121);
+  });
+  doc.save(filename);
+}
+
+/** Abre uma janela só com os cartões e chama a impressão do navegador. */
+export function printCards(cards: { number: number; dataUrl: string }[]) {
+  const w = window.open("", "_blank");
+  if (!w) return false;
+  w.document.write(`<!doctype html><html><head><title>QR Codes</title><style>
+    @page { size: A4; margin: 10mm } body { margin: 0; font-family: sans-serif }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm } img { width: 100%; border: 1px dashed #bbb; break-inside: avoid }
+  </style></head><body><div class="grid">${cards.map((c) => `<img src="${c.dataUrl}" alt="Mesa ${c.number}">`).join("")}</div>
+  <script>window.onload = () => { window.print(); }<\/script></body></html>`);
+  w.document.close();
+  return true;
+}

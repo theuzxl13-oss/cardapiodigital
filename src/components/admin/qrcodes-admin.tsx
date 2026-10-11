@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton, Spinner } from "@/components/ui/misc";
 import { useLiveQuery } from "@/hooks/use-live-query";
 import { check, rpc, sb } from "@/lib/api";
-import { downloadDataUrl, tableCard } from "@/lib/qr";
+import { downloadCardsPdf, downloadDataUrl, tableCard, tableMenuUrl } from "@/lib/qr";
 import { pad } from "@/lib/format";
 import type { DiningTable } from "@/lib/types";
 
@@ -25,7 +25,7 @@ export function QrCodesAdmin({ siteUrl }: { siteUrl: string }) {
   const [cards, setCards] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
-  const urlFor = (t: DiningTable) => `${siteUrl}/menu?mesa=${pad(t.number)}&k=${t.qr_token}`;
+  const urlFor = (t: DiningTable) => tableMenuUrl(siteUrl, t.number, t.qr_token);
 
   useEffect(() => {
     if (!data) return;
@@ -46,17 +46,7 @@ export function QrCodesAdmin({ siteUrl }: { siteUrl: string }) {
   async function pdf() {
     setBusy(true);
     try {
-      const { jsPDF } = await import("jspdf");
-      const doc = new jsPDF({ unit: "mm", format: "a4" });
-      // 4 cartões por página (A4 retrato, 2x2), 85 x 117 mm cada
-      chosen.forEach((t, i) => {
-        if (i > 0 && i % 4 === 0) doc.addPage();
-        const slot = i % 4;
-        const x = 15 + (slot % 2) * 95, y = 20 + Math.floor(slot / 2) * 135;
-        doc.addImage(cards[t.id], "PNG", x, y, 85, 117);
-        doc.setDrawColor(200); doc.setLineDashPattern([1, 1], 0); doc.rect(x - 2, y - 2, 89, 121);
-      });
-      doc.save(`qrcodes-mesas-${new Date().toISOString().slice(0, 10)}.pdf`);
+      await downloadCardsPdf(chosen.map((t) => ({ number: t.number, dataUrl: cards[t.id] })), `qrcodes-mesas-${new Date().toISOString().slice(0, 10)}.pdf`);
     } finally {
       setBusy(false);
     }
