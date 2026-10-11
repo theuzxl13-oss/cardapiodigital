@@ -23,16 +23,14 @@ worker({
     const open = (relaxedDurability: boolean) =>
       PGlite.create({ dataDir: options.dataDir, pgliteWasmModule, initdbWasmModule, fsBundle, relaxedDurability, extensions: { pgcrypto } });
 
-    // Carga inicial com gravação síncrona e fechamento (garante que tudo foi salvo no IndexedDB);
-    // depois reabre em modo de gravação assíncrona, muito mais rápido para o uso interativo.
-    let pg = await open(true);
+    // Gravação assíncrona (rápida) no uso interativo; após a carga inicial, força a gravação
+    // completa no IndexedDB para que outra aba possa assumir o banco com segurança.
+    const pg = await open(true);
     const exists = await pg.query<{ t: string | null }>("select to_regclass('public.demo_meta')::text as t");
     if (!exists.rows[0]?.t) {
-      await pg.close();
-      pg = await open(false);
       await pg.exec(SQL_BUNDLE);
-      await pg.close();
-      pg = await open(true);
+      // Gravação completa e aguardada (no modo assíncrono, pg.syncToFs() apenas agenda)
+      await (pg as unknown as { fs: { syncToFs(relaxed: boolean): Promise<void> } }).fs.syncToFs(false);
     }
     return pg;
   },
