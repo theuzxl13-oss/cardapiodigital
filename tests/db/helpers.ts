@@ -1,5 +1,6 @@
 import { Pool, type PoolClient } from "pg";
 import { randomUUID } from "node:crypto";
+import type { Row } from "./types";
 
 export const DATABASE_URL = process.env.DATABASE_URL ?? "";
 export const RESTAURANT_ID = "00000000-0000-4000-a000-000000000001";
@@ -7,10 +8,10 @@ export const hasDb = DATABASE_URL.length > 0;
 
 export const pool = hasDb ? new Pool({ connectionString: DATABASE_URL, max: 6 }) : (null as unknown as Pool);
 
-type Query = <T = any>(sql: string, params?: unknown[]) => Promise<T[]>;
+type Query = <T = Row>(sql: string, params?: unknown[]) => Promise<T[]>;
 
 /** Executa como superusuário (equivalente ao service_role). */
-export async function admin<T = any>(sql: string, params: unknown[] = []): Promise<T[]> {
+export async function admin<T = Row>(sql: string, params: unknown[] = []): Promise<T[]> {
   const r = await pool.query(sql, params);
   return r.rows as T[];
 }
@@ -44,15 +45,15 @@ export async function as<T>(
   }
 }
 
-export async function rpc<T = any>(user: { id: string } | "anon", fn: string, args: Record<string, unknown>): Promise<T> {
+export async function rpc<T = unknown>(user: { id: string } | "anon", fn: string, args: Record<string, unknown>): Promise<T> {
   const names = Object.keys(args);
   const sql = `select to_jsonb(r) as result from public.${fn}(${names.map((n, i) => `${n} => $${i + 1}`).join(", ")}) r`;
   return as(user, async (q) => {
-    const rows = await q(sql, names.map((n) => normalize(args[n])));
+    const rows = await q<{ result: unknown }>(sql, names.map((n) => normalize(args[n])));
     const v = rows[0]?.result;
     // Funções que retornam jsonb chegam embrulhadas como {fn: ...}
-    if (v && typeof v === "object" && fn in v && Object.keys(v).length === 1) return v[fn];
-    return v;
+    if (v && typeof v === "object" && fn in v && Object.keys(v).length === 1) return (v as Record<string, unknown>)[fn] as T;
+    return v as T;
   });
 }
 

@@ -261,6 +261,8 @@ prato aparece **sobre a mesa, em tamanho real**. Ele pode andar em volta para ve
 - O preço do pedido fica gravado no momento da confirmação — mudar o cardápio depois **não altera** pedidos antigos.
 - A cozinha não altera valores; o garçom não acessa configurações.
 - Cancelamentos registram **quem fez, quem autorizou e o motivo**.
+- Pedido já pago só pode ser cancelado depois do **estorno** do pagamento (o total nunca fica abaixo do valor pago).
+- Pedidos de comanda encerrada não mudam mais de status; gerar novo QR Code **encerra as sessões** abertas com o código antigo.
 - A comanda **não fecha** com saldo pendente (exceto com justificativa + PIN de gerente) nem com pedidos ainda na cozinha.
 - Não é possível pagar mais do que o saldo nem registrar o mesmo pagamento duas vezes.
 - O estoque baixa a cada venda e volta em caso de cancelamento.
@@ -286,7 +288,8 @@ prato aparece **sobre a mesa, em tamanho real**. Ele pode andar em volta para ve
    | 5 | `supabase/migrations/20261010000005_admin_reports.sql` |
    | 6 | `supabase/migrations/20261010000006_security.sql` |
    | 7 | `supabase/migrations/20261010000007_realtime_storage.sql` |
-   | 8 | `supabase/seed.sql` *(cardápio, mesas e estoque de demonstração)* |
+   | 8 | `supabase/migrations/20261012000008_audit_fixes.sql` |
+   | 9 | `supabase/seed.sql` *(cardápio, mesas e estoque de demonstração)* |
 
 3. Em **Authentication → Sign In / Providers → Email**, desligue **“Allow new users to sign up”**.
 4. Em **Project Settings → API**, copie: **Project URL**, **anon key** e **service_role key**.
@@ -373,6 +376,7 @@ Supabase local (Docker): `npx supabase start` aplica migrações e seed automati
 | `npm run dev` | Servidor de desenvolvimento |
 | `npm run build` / `npm start` | Build e servidor de produção |
 | `npm run typecheck` | Verificação de tipos |
+| `npm run lint` | ESLint (configuração oficial do Next.js) |
 | `npm test` | Testes (unitários + banco, se `DATABASE_URL` estiver definida) |
 | `npm run seed:demo` | Funcionários, histórico e pedidos de demonstração |
 | `npm run models:generate` | Regera os modelos 3D de demonstração |

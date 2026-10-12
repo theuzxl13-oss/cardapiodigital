@@ -49,7 +49,8 @@ export async function resetDemo() {
   await deleteIdb(`/pglite/${DEMO_DB_NAME}`);
   try { sessionStorage.clear(); } catch { /* ignore */ }
   channel()?.postMessage({ reset: true });
-  location.href = `${BASE}/`;
+  // Recarga completa (necessária para reabrir o banco recriado)
+  window.location.replace(new URL(`${BASE}/`, window.location.origin).href);
 }
 
 /**

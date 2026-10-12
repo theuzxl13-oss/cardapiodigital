@@ -19,12 +19,13 @@ import { routes } from "@/lib/routes";
 export function WaiterFloor() {
   const { data, loading, connected } = useLiveQuery("waiter-floor", loadFloor, ["orders", "tabs", "service_requests", "dining_tables"]);
   const alerts = useAlerts("alerts:waiter");
+  const { beep, notify } = alerts;
   const now = useNow();
   const seenReady = useRef<Set<string> | null>(null);
   const seenRequests = useRef<Set<string> | null>(null);
 
   const ready = useMemo(() => (data?.orders ?? []).filter((o) => o.status === "ready"), [data]);
-  const requests = data?.requests ?? [];
+  const requests = useMemo(() => data?.requests ?? [], [data]);
 
   // Notificação de pratos prontos e chamados de clientes
   useEffect(() => {
@@ -35,21 +36,21 @@ export function WaiterFloor() {
       for (const o of ready) if (!seenReady.current.has(o.id)) {
         const t = data.tables.find((x) => x.id === o.table_id);
         toast.success(`Pedido #${o.number} pronto — Mesa ${pad(t?.number ?? 0)}`, { duration: 10000 });
-        alerts.beep("ready");
-        alerts.notify("Pedido pronto", `Pedido #${o.number} · Mesa ${pad(t?.number ?? 0)}`);
+        beep("ready");
+        notify("Pedido pronto", `Pedido #${o.number} · Mesa ${pad(t?.number ?? 0)}`);
       }
     }
     if (seenRequests.current) {
       for (const r of requests) if (!seenRequests.current.has(r.id)) {
         const t = data.tables.find((x) => x.id === r.table_id);
         toast.info(`${r.type === "request_bill" ? "Conta solicitada" : "Chamado"} — Mesa ${pad(t?.number ?? 0)}`, { duration: 10000 });
-        alerts.beep("call");
-        alerts.notify(r.type === "request_bill" ? "Conta solicitada" : "Cliente chamando", `Mesa ${pad(t?.number ?? 0)}`);
+        beep("call");
+        notify(r.type === "request_bill" ? "Conta solicitada" : "Cliente chamando", `Mesa ${pad(t?.number ?? 0)}`);
       }
     }
     seenReady.current = readyIds;
     seenRequests.current = reqIds;
-  }, [data, ready, requests, alerts]);
+  }, [data, ready, requests, beep, notify]);
 
   async function deliver(orderId: string) {
     try {
@@ -89,14 +90,14 @@ export function WaiterFloor() {
 
       {(ready.length > 0 || requests.length > 0) && (
         <div className="grid gap-4 md:grid-cols-2">
-          <Card className={cn(ready.length > 0 && "border-emerald-400")}>
+          <Card className={cn("min-w-0", ready.length > 0 && "border-emerald-400")}>
             <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><ChefHat className="size-5 text-emerald-600" /> Prontos para servir ({ready.length})</CardTitle></CardHeader>
             <CardContent className="grid gap-2">
               {ready.length === 0 && <p className="text-sm text-muted-foreground">Nenhum prato aguardando.</p>}
               {ready.map((o) => {
                 const t = data.tables.find((x) => x.id === o.table_id);
                 return (
-                  <div key={o.id} className="flex items-center gap-3 rounded-lg border bg-emerald-50 p-3 dark:bg-emerald-950/30">
+                  <div key={o.id} className="flex min-w-0 items-center gap-3 rounded-lg border bg-emerald-50 p-3 dark:bg-emerald-950/30">
                     <div className="grid size-12 place-items-center rounded-lg bg-emerald-600 text-lg font-bold text-white">{pad(t?.number ?? 0)}</div>
                     <div className="min-w-0 flex-1 text-sm">
                       <p className="font-semibold">Pedido #{o.number} <span className="font-normal text-muted-foreground">· pronto há {elapsedLabel(o.ready_at ?? o.created_at, now)}</span></p>
@@ -108,16 +109,16 @@ export function WaiterFloor() {
               })}
             </CardContent>
           </Card>
-          <Card className={cn(requests.length > 0 && "border-amber-400")}>
+          <Card className={cn("min-w-0", requests.length > 0 && "border-amber-400")}>
             <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><BellRing className="size-5 text-amber-600" /> Chamados ({requests.length})</CardTitle></CardHeader>
             <CardContent className="grid gap-2">
               {requests.length === 0 && <p className="text-sm text-muted-foreground">Nenhum chamado aberto.</p>}
               {requests.map((r) => {
                 const t = data.tables.find((x) => x.id === r.table_id);
                 return (
-                  <div key={r.id} className="flex items-center gap-3 rounded-lg border bg-amber-50 p-3 dark:bg-amber-950/30">
+                  <div key={r.id} className="flex min-w-0 items-center gap-3 rounded-lg border bg-amber-50 p-3 dark:bg-amber-950/30">
                     <div className="grid size-12 place-items-center rounded-lg bg-amber-500 text-lg font-bold text-white">{pad(t?.number ?? 0)}</div>
-                    <div className="flex-1 text-sm">
+                    <div className="min-w-0 flex-1 text-sm">
                       <p className="font-semibold">{r.type === "request_bill" ? "Solicitou a conta" : "Chamou o garçom"}</p>
                       <p className="text-muted-foreground">há {elapsedLabel(r.created_at, now)}{r.note ? ` · ${r.note}` : ""}</p>
                     </div>

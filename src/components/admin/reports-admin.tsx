@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { FileDown, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Input, Select } from "@/components/ui/input";
 import { Skeleton, Spinner, Table, Td, Th } from "@/components/ui/misc";
 import { Switch } from "@/components/ui/switch";
 import { HBarList, RevenueChart, StatTile } from "./charts";
+import { useLiveQuery } from "@/hooks/use-live-query";
 import type { ReportSummary } from "./dashboard";
 import { check, rpc, sb } from "@/lib/api";
 import { dateTime, money } from "@/lib/format";
@@ -47,42 +48,34 @@ export function ReportsAdmin() {
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(today);
   const [includeDemo, setIncludeDemo] = useState(true);
-  const [data, setData] = useState<{
-    summary: ReportSummary; cash: CashRow[]; cancels: CancelRow[]; stock: StockRow[];
-    names: Record<string, string>; ingredients: Record<string, { name: string; unit: string }>; period: [Date, Date];
-  } | null>(null);
-  const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
+  const queryKey = `reports:${preset}:${from}:${to}:${includeDemo}`;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [a, b] = range(preset, from, to);
-      const [summary, cash, cancels, stock, profiles, ingredients] = await Promise.all([
-        rpc<ReportSummary>("report_summary", { p_from: a.toISOString(), p_to: b.toISOString(), p_include_demo: includeDemo }),
-        sb().from("cash_sessions").select("*").gte("opened_at", a.toISOString()).lt("opened_at", b.toISOString()).order("opened_at", { ascending: false }),
-        sb().from("orders").select("id, number, cancelled_at, cancel_reason, subtotal, cancelled_by, cancelled_by_customer, cancel_authorized_by").eq("status", "cancelled").gte("created_at", a.toISOString()).lt("created_at", b.toISOString()).order("cancelled_at", { ascending: false }),
-        sb().from("stock_movements").select("ingredient_id, type, quantity").gte("created_at", a.toISOString()).lt("created_at", b.toISOString()).limit(5000),
-        sb().from("profiles").select("id, full_name"),
-        sb().from("ingredients").select("id, name, unit"),
-      ]);
-      setData({
-        summary,
-        cash: (check(cash) as CashRow[]).filter((c) => includeDemo || !c.is_demo),
-        cancels: check(cancels) as CancelRow[],
-        stock: check(stock) as StockRow[],
-        names: Object.fromEntries((check(profiles) as { id: string; full_name: string }[]).map((p) => [p.id, p.full_name])),
-        ingredients: Object.fromEntries((check(ingredients) as { id: string; name: string; unit: string }[]).map((i) => [i.id, { name: i.name, unit: i.unit }])),
-        period: [a, b],
-      });
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [preset, from, to, includeDemo]);
+  const fetcher = useCallback(async () => {
+    const [a, b] = range(preset, from, to);
+    const [summary, cash, cancels, stock, profiles, ingredients] = await Promise.all([
+      rpc<ReportSummary>("report_summary", { p_from: a.toISOString(), p_to: b.toISOString(), p_include_demo: includeDemo }),
+      sb().from("cash_sessions").select("*").gte("opened_at", a.toISOString()).lt("opened_at", b.toISOString()).order("opened_at", { ascending: false }),
+      sb().from("orders").select("id, number, cancelled_at, cancel_reason, subtotal, cancelled_by, cancelled_by_customer, cancel_authorized_by").eq("status", "cancelled").gte("created_at", a.toISOString()).lt("created_at", b.toISOString()).order("cancelled_at", { ascending: false }),
+      sb().from("stock_movements").select("ingredient_id, type, quantity").gte("created_at", a.toISOString()).lt("created_at", b.toISOString()).limit(5000),
+      sb().from("profiles").select("id, full_name"),
+      sb().from("ingredients").select("id, name, unit"),
+    ]);
+    return {
+      key: queryKey,
+      summary,
+      cash: (check(cash) as CashRow[]).filter((c) => includeDemo || !c.is_demo),
+      cancels: check(cancels) as CancelRow[],
+      stock: check(stock) as StockRow[],
+      names: Object.fromEntries((check(profiles) as { id: string; full_name: string }[]).map((p) => [p.id, p.full_name])),
+      ingredients: Object.fromEntries((check(ingredients) as { id: string; name: string; unit: string }[]).map((i) => [i.id, { name: i.name, unit: i.unit }])),
+      period: [a, b] as [Date, Date],
+    };
+  }, [preset, from, to, includeDemo, queryKey]);
 
-  useEffect(() => { load(); }, [load]);
+  // Relatórios são consultas pesadas: atualização automática a cada 5 minutos (e ao trocar o período)
+  const { data } = useLiveQuery(queryKey, fetcher, [], { intervalMs: 300000 });
+  const loading = !data || data.key !== queryKey;
 
   const s = data?.summary;
   const periodLabel = data ? `${data.period[0].toLocaleDateString("pt-BR")} a ${new Date(data.period[1].getTime() - 1).toLocaleDateString("pt-BR")}` : "";
