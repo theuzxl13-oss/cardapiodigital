@@ -13,6 +13,15 @@ export async function rpc<T = unknown>(fn: string, args: Record<string, unknown>
   return data as T;
 }
 
+/**
+ * Valida o PIN de gerente (limite de 5 tentativas a cada 10 minutos). Em caso de sucesso, o banco
+ * libera UMA operação sensível nos próximos 2 minutos. Lança erro com a mensagem do banco.
+ */
+export async function authorizeWithPin(pin: string) {
+  const r = await rpc<{ ok: boolean; message?: string }>("authorize_supervisor_pin", { p_pin: pin });
+  if (!r.ok) throw new Error(r.message ?? "PIN incorreto");
+}
+
 function check<T>(res: { data: T | null; error: unknown }): T {
   if (res.error) throw new Error(errorMessage(res.error));
   return res.data as T;

@@ -16,7 +16,7 @@ import { OrderList } from "@/components/order/order-list";
 import { SupervisorDialog } from "@/components/staff/supervisor-dialog";
 import { useMyCashSession } from "./cash-session-store";
 import { useLiveQuery } from "@/hooks/use-live-query";
-import { check, loadTabDetail, rpc, sb } from "@/lib/api";
+import { authorizeWithPin, check, loadTabDetail, rpc, sb } from "@/lib/api";
 import { cashSuggestions, changeFor, proportionalShare, splitEqually } from "@/lib/billing";
 import { dateTime, money, pad, parseMoney, time } from "@/lib/format";
 import { PAYMENT_LABEL, TAB_STATUS_LABEL } from "@/lib/labels";
@@ -365,7 +365,10 @@ function DiscountDialog({ open, onOpenChange, subtotal, current, maxPct, isSuper
       <DialogContent>
         <form className="grid gap-4" onSubmit={async (e) => {
           e.preventDefault(); setBusy(true);
-          try { await onSave(value, reason, needsPin ? pin : null); onOpenChange(false); setInput(""); setReason(""); setPin(""); }
+          try {
+            if (needsPin) await authorizeWithPin(pin);
+            await onSave(value, reason, needsPin ? pin : null); onOpenChange(false); setInput(""); setReason(""); setPin("");
+          }
           catch (err) { toast.error((err as Error).message); }
           finally { setBusy(false); }
         }}>

@@ -3,7 +3,7 @@
  * Requer DATABASE_URL apontando para um banco preparado por `npm run db:local:setup`.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { CashSessionRow, CloseResult, CustomerState, IdRow, LiveRow, OpenSession, OrderRow, PaymentResult, ReportRow, TabRow, TotalsRow } from "./types";
+import type { PinResult, CashSessionRow, CloseResult, CustomerState, IdRow, LiveRow, OpenSession, OrderRow, PaymentResult, ReportRow, TabRow, TotalsRow } from "./types";
 import {
   admin, as, createUser, hasDb, key, optionByName, pool, productByName, resetTable, rpc, tableByNumber,
 } from "./helpers";
@@ -241,6 +241,9 @@ d("Cozinha, garçom e permissões", () => {
       .rejects.toThrow(/PIN/);
     await expect(rpc(waiter, "cancel_order", { p_order_id: order.id, p_reason: "Cliente desistiu", p_supervisor_pin: "0000" }))
       .rejects.toThrow(/PIN/);
+    const wrong = await rpc<PinResult>(waiter, "authorize_supervisor_pin", { p_pin: "0000" });
+    expect(wrong.ok).toBe(false);
+    expect((await rpc<PinResult>(waiter, "authorize_supervisor_pin", { p_pin: "4321" })).ok).toBe(true);
     const c = await rpc<OrderRow>(waiter, "cancel_order", { p_order_id: order.id, p_reason: "Cliente desistiu", p_supervisor_pin: "4321" });
     expect(c.status).toBe("cancelled");
     expect(c.cancelled_by).toBe(waiter.id);
@@ -383,6 +386,7 @@ d("Caixa e fechamento de conta", () => {
     const o = await rpc<OrderRow>(waiter2, "staff_place_order", { p_tab_id: tab.id, p_items: [await burgerItem()], p_notes: null, p_priority: false, p_idempotency_key: key() });
     await serve(o.id);
     await expect(rpc(cashier, "close_tab", { p_tab_id: tab.id, p_force_reason: "Cliente saiu sem pagar", p_supervisor_pin: null })).rejects.toThrow(/PIN/);
+    await rpc(cashier, "authorize_supervisor_pin", { p_pin: "4321" });
     const r = await rpc<CloseResult>(cashier, "close_tab", { p_tab_id: tab.id, p_force_reason: "Cliente saiu sem pagar", p_supervisor_pin: "4321" });
     expect(r.tab.forced_close_authorized_by).toBe(adminUser.id);
   });
@@ -396,6 +400,7 @@ d("Caixa e fechamento de conta", () => {
       p_tab_id: tab.id, p_method: "cash", p_amount: 20, p_received_amount: 20, p_payer_label: null, p_idempotency_key: key(),
     });
     await expect(rpc(cashier, "void_payment", { p_payment_id: p.payment.id, p_reason: "Valor errado", p_supervisor_pin: null })).rejects.toThrow(/PIN/);
+    await rpc(cashier, "authorize_supervisor_pin", { p_pin: "4321" });
     await rpc(cashier, "void_payment", { p_payment_id: p.payment.id, p_reason: "Valor errado", p_supervisor_pin: "4321" });
 
     await rpc(cashier, "register_cash_movement", { p_type: "supply", p_amount: 30, p_reason: "Troco extra" });

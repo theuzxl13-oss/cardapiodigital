@@ -25,9 +25,11 @@ async function loadTabs() {
     sb().from("tabs").select("*").eq("status", "closed").gte("closed_at", today.toISOString()).order("closed_at", { ascending: false }).limit(50),
   ]);
   const active = check(tabs) as Tab[];
-  const totals = await Promise.all(active.map((t) => sb().rpc("staff_tab_totals", { p_tab_id: t.id }).single()));
+  // Uma única consulta para os totais de todas as comandas abertas
+  const summary = check(await sb().rpc("staff_open_tabs_summary")) as (TabTotals & { tab_id: string })[];
+  const byTab = new Map(summary.map((r) => [r.tab_id, r]));
   return {
-    tabs: active.map((t, i) => ({ ...t, totals: (totals[i].data ?? null) as TabTotals | null })),
+    tabs: active.map((t) => ({ ...t, totals: (byTab.get(t.id) ?? null) as TabTotals | null })),
     tables: check(tables) as Pick<DiningTable, "id" | "number" | "label">[],
     closed: check(closed) as Tab[],
   };
