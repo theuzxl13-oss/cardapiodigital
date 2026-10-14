@@ -45,7 +45,7 @@ em tempo real**.
 | Para quem | O que ganha |
 |---|---|
 | **Cliente** | Cardápio bonito no celular, sem instalar app; vê o prato em 3D sobre a mesa; pede, acompanha e chama o garçom |
-| **Garçom** | Mapa das mesas, lança pedidos, recebe aviso de prato pronto e de cliente chamando |
+| **Garçom** | Mapa das mesas, lança pedidos, transfere e junta mesas, recebe aviso de prato pronto e de cliente chamando |
 | **Cozinha** | Tela grande com os pedidos na ordem certa, tempo de espera e alerta sonoro |
 | **Caixa** | Conta completa da mesa, divisão, vários pagamentos, troco e comprovante |
 | **Dono / gerente** | Faturamento, mais vendidos, estoque, funcionários, QR Codes e relatórios em PDF/Excel |
@@ -200,6 +200,18 @@ Tela escura, alto contraste e botões grandes, pensada para monitor ou tablet.
 
 `Aberta` → `Fechamento solicitado` (cliente ou garçom pediu a conta) → `Encerrada` (caixa) — e a mesa fica livre.
 
+### Transferir e juntar mesas
+
+No garçom (tela da mesa) ou no caixa (tela da comanda), botão **“Transferir / juntar”**:
+
+- **Transferir** — o cliente mudou de mesa: a comanda inteira (pedidos, chamados e celulares conectados) vai para uma
+  mesa **livre**, e a mesa antiga fica livre. Os celulares continuam pedindo normalmente, agora na nova mesa.
+- **Juntar mesas** — duas mesas viraram uma conta só: a conta da outra mesa é **somada** a esta (pedidos e pagamentos já
+  feitos). A outra mesa fica livre e os clientes dela continuam pedindo na conta unida. Se a comanda que será unida
+  tiver desconto, ele precisa ser removido antes (o desconto é revisto na conta unida).
+
+As duas operações são feitas em uma única transação no banco e ficam registradas na auditoria.
+
 ---
 
 ## 🥽 Realidade aumentada
@@ -231,6 +243,7 @@ prato aparece **sobre a mesa, em tamanho real**. Ele pode andar em volta para ve
 | Abrir mesa / lançar pedido | | ✅ | | ✅ | ✅ | ✅ |
 | Iniciar preparo / marcar pronto | | | ✅ | | ✅ | ✅ |
 | Marcar entregue | | ✅ | | | ✅ | ✅ |
+| Transferir / juntar mesas | | ✅ | | ✅ | ✅ | ✅ |
 | Cancelar pedido **antes** do preparo | ✅¹ | ✅ | | ✅ | ✅ | ✅ |
 | Cancelar pedido **depois** do preparo | | 🔑 | | 🔑 | ✅ | ✅ |
 | Marcar produto indisponível | | ✅ | ✅ | | ✅ | ✅ |
@@ -292,7 +305,8 @@ prato aparece **sobre a mesa, em tamanho real**. Ele pode andar em volta para ve
    | 7 | `supabase/migrations/20261010000007_realtime_storage.sql` |
    | 8 | `supabase/migrations/20261012000008_audit_fixes.sql` |
    | 9 | `supabase/migrations/20261014000009_pin_limit_tab_summary.sql` |
-   | 10 | `supabase/seed.sql` *(cardápio, mesas e estoque de demonstração)* |
+   | 10 | `supabase/migrations/20261014000010_transfer_merge_tables.sql` |
+   | 11 | `supabase/seed.sql` *(cardápio, mesas e estoque de demonstração)* |
 
 3. Em **Authentication → Sign In / Providers → Email**, desligue **“Allow new users to sign up”**.
 4. Em **Project Settings → API**, copie: **Project URL**, **anon key** e **service_role key**.

@@ -33,7 +33,7 @@ Princípios:
 | `categories`, `products` | Cardápio; `products` com alergênicos, etiquetas, disponibilidade, exclusão lógica (`deleted_at`) e URLs GLB/USDZ |
 | `modifier_groups`, `modifier_options` | Adicionais/personalização com `min_select`/`max_select` e acréscimo de preço |
 | `dining_tables` | Mesas com `qr_token` secreto (permanece com a mesa entre comandas; pode ser regenerado) |
-| `tabs` | Comandas: `open → closing → closed` (ou `cancelled`); taxa, desconto e autorizações. Índice único parcial: 1 ativa por mesa |
+| `tabs` | Comandas: `open → closing → closed` (ou `cancelled`); taxa, desconto e autorizações. Índice único parcial: 1 ativa por mesa; `merged_into_tab_id` quando unida a outra |
 | `table_sessions` | Sessões dos dispositivos dos clientes (somente hash SHA-256 do token), expiração e revogação |
 | `orders` | Pedidos: origem (cliente/garçom), status, prioridade, carimbos de tempo e responsáveis por etapa, `idempotency_key` única |
 | `order_items` | Itens com **snapshot** de nome, preço unitário e adicionais |
@@ -61,6 +61,8 @@ Totais da comanda são sempre calculados por `tab_totals(tab_id)`: subtotal (ped
 | `update_order_status(pedido, para, esperado)` | por transição | `received→preparing→ready` (cozinha), `ready→delivered` (garçom); detecta conflito |
 | `cancel_order(pedido, motivo, pin)` | garçom, caixa, gerente, admin | Justificativa; PIN após início do preparo; devolve estoque; bloqueado se o total ficar abaixo do já pago |
 | `request_tab_close`, `reopen_tab`, `cancel_empty_tab` | garçom, caixa, gerente, admin | Fluxo da comanda no salão |
+| `transfer_tab(tab, mesa)` | garçom, caixa, gerente, admin | Move a comanda (pedidos, chamados, sessões dos clientes) para uma mesa livre |
+| `merge_tabs(origem, destino)` | garçom, caixa, gerente, admin | Soma pedidos e pagamentos da origem no destino; origem vira `cancelled` com `merged_into_tab_id` (não conta como fechada) |
 | `open_cash_session`, `register_cash_movement`, `close_cash_session`, `cash_session_summary` | caixa, gerente, admin | Controle de caixa |
 | `register_payment`, `void_payment` | caixa, gerente, admin | Pagamentos (não excede saldo, idempotente) e estorno autorizado |
 | `set_tab_adjustments` | caixa, gerente, admin | Taxa de serviço e desconto (PIN acima do limite) |
