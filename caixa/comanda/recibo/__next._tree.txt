@@ -1,0 +1,9 @@
+:HL["/cardapiodigital/_next/static/chunks/3c_pbgx2c2a3t.css","style"]
+:HL["/cardapiodigital/_next/static/chunks/01c1j0ojc1a1s.css","style"]
+:HL["/cardapiodigital/_next/static/media/2a65768255d6b625-s.p.3u4lli0-axodc.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+:HL["/cardapiodigital/_next/static/media/83afe278b6a6bb3c-s.p.2bn3s6zvc0dyp.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+4:[["children",{"s":"__PAGE__","h":160}]]
+3:[["children",{"s":"recibo","h":96,"c":"$Q4"}]]
+2:[["children",{"s":"comanda","h":96,"c":"$Q3"}]]
+1:[["children",{"s":"caixa","h":96,"c":"$Q2"}]]
+0:{"b":"5ShEwwU2EOGdhLq9GQg3P","t":{"t":{"s":"","h":80,"c":"$Q1"}}}
