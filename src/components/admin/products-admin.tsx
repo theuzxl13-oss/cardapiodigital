@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Image from "next/image";
 import { Cuboid, ImageUp, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -311,12 +311,10 @@ function UploadButton({ label, accept, busy, onFile, icon }: { label: string; ac
 }
 
 function ModifiersEditor({ productId }: { productId: string }) {
-  const [groups, setGroups] = useState<ModifierGroup[] | null>(null);
-  const load = async () => {
-    const { data } = await sb().from("modifier_groups").select("*, modifier_options(*)").eq("product_id", productId).order("sort_order");
-    setGroups((data ?? []) as ModifierGroup[]);
-  };
-  useEffect(() => { load(); }, [productId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const fetchGroups = useCallback(async () =>
+    check(await sb().from("modifier_groups").select("*, modifier_options(*)").eq("product_id", productId).order("sort_order")) as ModifierGroup[],
+  [productId]);
+  const { data: groups, reload: load } = useLiveQuery(`modifiers:${productId}`, fetchGroups, [], { intervalMs: 60000 });
 
   async function run(p: PromiseLike<{ error: { message: string } | null }>) {
     const { error } = await p;
@@ -355,14 +353,12 @@ function ModifiersEditor({ productId }: { productId: string }) {
 }
 
 function RecipeEditor({ productId, ingredients }: { productId: string; ingredients: Ingredient[] }) {
-  const [rows, setRows] = useState<{ ingredient_id: string; quantity: number }[] | null>(null);
+  const fetchRows = useCallback(async () =>
+    check(await sb().from("product_ingredients").select("ingredient_id, quantity").eq("product_id", productId)) as { ingredient_id: string; quantity: number }[],
+  [productId]);
+  const { data: rows, reload: load } = useLiveQuery(`recipe:${productId}`, fetchRows, [], { intervalMs: 60000 });
   const [newIng, setNewIng] = useState(ingredients[0]?.id ?? "");
   const [newQty, setNewQty] = useState("");
-  const load = async () => {
-    const { data } = await sb().from("product_ingredients").select("ingredient_id, quantity").eq("product_id", productId);
-    setRows((data ?? []) as { ingredient_id: string; quantity: number }[]);
-  };
-  useEffect(() => { load(); }, [productId]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!rows) return <Skeleton className="h-40" />;
   const cost = rows.reduce((s, r) => s + Number(r.quantity) * Number(ingredients.find((i) => i.id === r.ingredient_id)?.cost_per_unit ?? 0), 0);
 

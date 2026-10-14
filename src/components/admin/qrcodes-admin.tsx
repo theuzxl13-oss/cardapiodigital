@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Download, FileDown, Printer, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton, Spinner } from "@/components/ui/misc";
 import { useLiveQuery } from "@/hooks/use-live-query";
 import { check, rpc, sb } from "@/lib/api";
-import { downloadCardsPdf, downloadDataUrl, tableCard, tableMenuUrl } from "@/lib/qr";
+import { downloadCardsPdf, downloadDataUrl, publicSiteUrl, tableCard, tableMenuUrl } from "@/lib/qr";
 import { pad } from "@/lib/format";
 import type { DiningTable } from "@/lib/types";
 
@@ -20,23 +21,22 @@ async function loadTables() {
   return { tables: check(tables) as DiningTable[], name: (check(rest) as { name: string }).name };
 }
 
-export function QrCodesAdmin({ siteUrl }: { siteUrl: string }) {
+export function QrCodesAdmin() {
   const { data, reload } = useLiveQuery("admin-qr", loadTables, ["dining_tables"]);
   const [cards, setCards] = useState<Record<string, string>>({});
+  const [siteUrl, setSiteUrl] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
-  const urlFor = (t: DiningTable) => tableMenuUrl(siteUrl, t.number, t.qr_token);
-
   useEffect(() => {
     if (!data) return;
     let cancelled = false;
     (async () => {
+      const site = publicSiteUrl();
       const out: Record<string, string> = {};
-      for (const t of data.tables.filter((x) => x.active)) out[t.id] = await tableCard(urlFor(t), t.number, data.name);
-      if (!cancelled) setCards(out);
+      for (const t of data.tables.filter((x) => x.active)) out[t.id] = await tableCard(tableMenuUrl(site, t.number, t.qr_token), t.number, data.name);
+      if (!cancelled) { setCards(out); setSiteUrl(site); }
     })();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
   if (!data) return <div className="p-8"><Skeleton className="h-96" /></div>;
@@ -53,7 +53,7 @@ export function QrCodesAdmin({ siteUrl }: { siteUrl: string }) {
   }
 
   async function regenerate(t: DiningTable) {
-    if (!confirm(`Gerar novo QR Code para a Mesa ${pad(t.number)}? O código impresso atual deixará de funcionar.`)) return;
+    if (!confirm(`Gerar novo QR Code para a Mesa ${pad(t.number)}? O código impresso atual deixará de funcionar e os clientes conectados por ele precisarão escanear o novo.`)) return;
     try { await rpc("regenerate_table_qr", { p_table_id: t.id }); toast.success("Novo QR Code gerado"); reload(); }
     catch (e) { toast.error((e as Error).message); }
   }
@@ -81,7 +81,7 @@ export function QrCodesAdmin({ siteUrl }: { siteUrl: string }) {
                 <input type="checkbox" checked={selected.has(t.id)} onChange={(e) => setSelected((p) => { const n = new Set(p); if (e.target.checked) n.add(t.id); else n.delete(t.id); return n; })} />
                 Mesa {pad(t.number)}
               </label>
-              {cards[t.id] ? <img src={cards[t.id]} alt={`QR Code da Mesa ${pad(t.number)}`} className="w-full rounded-md border" /> : <Skeleton className="aspect-[8/11]" />}
+              {cards[t.id] ? <Image src={cards[t.id]} alt={`QR Code da Mesa ${pad(t.number)}`} width={800} height={1100} unoptimized className="h-auto w-full rounded-md border" /> : <Skeleton className="aspect-[8/11]" />}
               <div className="no-print flex gap-1">
                 <Button size="sm" variant="outline" className="flex-1" disabled={!cards[t.id]} onClick={() => downloadDataUrl(cards[t.id], `mesa-${pad(t.number)}.png`)}><Download /> PNG</Button>
                 <Button size="icon-sm" variant="ghost" title="Gerar novo código" onClick={() => regenerate(t)}><RefreshCw /></Button>

@@ -59,13 +59,13 @@ Totais da comanda são sempre calculados por `tab_totals(tab_id)`: subtotal (ped
 | `customer_request_service(token, tipo)` | anônimo (token) | Chamar garçom / pedir a conta (sem duplicar) |
 | `staff_open_tab`, `staff_place_order` | garçom, caixa, gerente, admin | Abrir mesa e lançar pedidos na mesma comanda |
 | `update_order_status(pedido, para, esperado)` | por transição | `received→preparing→ready` (cozinha), `ready→delivered` (garçom); detecta conflito |
-| `cancel_order(pedido, motivo, pin)` | garçom, caixa, gerente, admin | Justificativa; PIN após início do preparo; devolve estoque |
+| `cancel_order(pedido, motivo, pin)` | garçom, caixa, gerente, admin | Justificativa; PIN após início do preparo; devolve estoque; bloqueado se o total ficar abaixo do já pago |
 | `request_tab_close`, `reopen_tab`, `cancel_empty_tab` | garçom, caixa, gerente, admin | Fluxo da comanda no salão |
 | `open_cash_session`, `register_cash_movement`, `close_cash_session`, `cash_session_summary` | caixa, gerente, admin | Controle de caixa |
 | `register_payment`, `void_payment` | caixa, gerente, admin | Pagamentos (não excede saldo, idempotente) e estorno autorizado |
 | `set_tab_adjustments` | caixa, gerente, admin | Taxa de serviço e desconto (PIN acima do limite) |
 | `close_tab(tab, motivo, pin)` | caixa, gerente, admin | Encerra, revoga sessões, libera a mesa |
-| `adjust_stock`, `set_staff_pin`, `regenerate_table_qr` | gerente, admin | Administração |
+| `adjust_stock`, `set_staff_pin`, `regenerate_table_qr` | gerente, admin | Administração (regenerar o QR revoga as sessões abertas da mesa) |
 | `dashboard_live`, `report_summary` | gerente/admin (dashboard também caixa) | Indicadores e relatórios |
 | `demo_*` | somente `service_role` | Geração de dados fictícios |
 

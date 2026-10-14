@@ -5,12 +5,18 @@
  * /api/mesa/* repassam as operações às funções do banco.
  */
 async function call<T>(url: string, body?: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: body ? "POST" : "GET",
-    headers: body ? { "content-type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: body ? "POST" : "GET",
+      headers: body ? { "content-type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+      cache: "no-store",
+    });
+  } catch {
+    // Falha de rede: o carrinho é mantido e o reenvio usa a mesma chave (sem pedido duplicado)
+    throw new Error("Sem conexão com a internet. Verifique sua rede e tente novamente.");
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(data?.error ?? "Erro de comunicação") as Error & { status?: number };

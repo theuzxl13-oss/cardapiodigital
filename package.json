@@ -14,7 +14,8 @@
     "models:generate": "node scripts/generate-models.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
     "db:local:setup": "bash scripts/local-db.sh",
-    "demo:build": "node demo/build.mjs"
+    "demo:build": "node demo/build.mjs",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@google/model-viewer": "^4.4.0",
@@ -53,6 +54,8 @@
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.183.1",
     "dotenv": "^18.0.7",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.0",
     "pg": "^8.23.1",
     "playwright-core": "^1.64.0",
     "postcss": "^8.5.29",
@@ -60,5 +63,8 @@
     "typescript": "^5.9.3",
     "vitest": "^5.0.3"
   },
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
 }

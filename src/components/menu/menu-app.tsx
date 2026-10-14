@@ -347,17 +347,16 @@ function CartSheet({ open, onOpenChange, cart, unavailable, onPlaced }: {
   const [notes, setNotes] = useState("");
   const [sending, setSending] = useState(false);
   // A mesma chave é reutilizada em novas tentativas do mesmo carrinho: o servidor não duplica o pedido.
-  const keyRef = useRef<string | null>(null);
+  // A chave só muda quando o conteúdo do carrinho muda; reenviar o mesmo carrinho reutiliza a chave.
+  const keyRef = useRef<{ signature: string; key: string } | null>(null);
   const signature = JSON.stringify(cart.items.map((i) => [i.key, i.quantity])) + notes;
-  const sigRef = useRef(signature);
-  if (sigRef.current !== signature) { sigRef.current = signature; keyRef.current = null; }
 
   async function submit() {
     if (unavailable.length) return toast.error("Remova os itens indisponíveis antes de confirmar.");
-    keyRef.current ??= newIdempotencyKey();
+    if (keyRef.current?.signature !== signature) keyRef.current = { signature, key: newIdempotencyKey() };
     setSending(true);
     try {
-      const order = await customerApi.placeOrder({ items: toOrderPayload(cart.items), notes: notes.trim() || null, idempotency_key: keyRef.current });
+      const order = await customerApi.placeOrder({ items: toOrderPayload(cart.items), notes: notes.trim() || null, idempotency_key: keyRef.current.key });
       cart.clear(); setNotes(""); keyRef.current = null;
       onPlaced(order.number);
     } catch (e) {

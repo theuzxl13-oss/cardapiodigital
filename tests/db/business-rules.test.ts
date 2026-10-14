@@ -3,6 +3,7 @@
  * Requer DATABASE_URL apontando para um banco preparado por `npm run db:local:setup`.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { CashSessionRow, CloseResult, CustomerState, IdRow, LiveRow, OpenSession, OrderRow, PaymentResult, ReportRow, TabRow, TotalsRow } from "./types";
 import {
   admin, as, createUser, hasDb, key, optionByName, pool, productByName, resetTable, rpc, tableByNumber,
 } from "./helpers";
@@ -38,8 +39,8 @@ async function serve(orderId: string) {
 
 async function openCustomer(n: number) {
   const t = await tableByNumber(n);
-  const s = await rpc<any>("anon", "customer_open_session", { p_qr_token: t.qr_token, p_user_agent: "vitest" });
-  return s.session_token as string;
+  const s = await rpc<OpenSession>("anon", "customer_open_session", { p_qr_token: t.qr_token, p_user_agent: "vitest" });
+  return s.session_token;
 }
 
 async function burgerItem(qty = 1, extra: string[] = []) {
@@ -60,8 +61,8 @@ d("Sessão de mesa e QR Code", () => {
     await resetTable(1);
     const a = await openCustomer(1);
     const b = await openCustomer(1);
-    const sa = await rpc<any>("anon", "customer_get_state", { p_session_token: a });
-    const sb = await rpc<any>("anon", "customer_get_state", { p_session_token: b });
+    const sa = await rpc<CustomerState>("anon", "customer_get_state", { p_session_token: a });
+    const sb = await rpc<CustomerState>("anon", "customer_get_state", { p_session_token: b });
     expect(sa.tab.id).toBe(sb.tab.id);
     const active = await admin(`select count(*)::int c from tabs t join dining_tables d on d.id = t.table_id
                                 where d.number = 1 and t.status in ('open','closing')`);
@@ -94,7 +95,7 @@ d("Pedidos do cliente", () => {
     await resetTable(5);
     const token = await openCustomer(5);
     const item = { ...(await burgerItem(2, ["Bacon extra"])), unit_price: 0.01, price: 0.01 };
-    const order = await rpc<any>("anon", "customer_place_order", {
+    const order = await rpc<OrderRow>("anon", "customer_place_order", {
       p_session_token: token, p_items: [item], p_notes: null, p_idempotency_key: key(),
     });
     // (39,90 + 6,00) * 2
@@ -138,10 +139,10 @@ d("Pedidos do cliente", () => {
     const k = key();
     const args = { p_session_token: token, p_items: [await burgerItem()], p_notes: null, p_idempotency_key: k };
     const [a, b] = await Promise.all([
-      rpc<any>("anon", "customer_place_order", args),
-      rpc<any>("anon", "customer_place_order", args).catch(() => null),
+      rpc<OrderRow>("anon", "customer_place_order", args),
+      rpc<OrderRow>("anon", "customer_place_order", args).catch(() => null),
     ]);
-    const again = await rpc<any>("anon", "customer_place_order", args);
+    const again = await rpc<OrderRow>("anon", "customer_place_order", args);
     expect(again.id).toBe(a.id);
     if (b) expect(b.id).toBe(a.id);
     const c = await admin(`select count(*)::int c from orders where idempotency_key = $1`, [k]);
@@ -150,7 +151,7 @@ d("Pedidos do cliente", () => {
 
   it("preço registrado no pedido não muda quando o cardápio é alterado", async () => {
     const token = await openCustomer(5);
-    const order = await rpc<any>("anon", "customer_place_order", {
+    const order = await rpc<OrderRow>("anon", "customer_place_order", {
       p_session_token: token, p_items: [await burgerItem()], p_notes: null, p_idempotency_key: key(),
     });
     const p = await productByName("Hambúrguer Artesanal Clássico");
@@ -165,12 +166,12 @@ d("Pedidos do cliente", () => {
     await resetTable(2);
     const t5 = await openCustomer(5);
     const t2 = await openCustomer(2);
-    const order = await rpc<any>("anon", "customer_place_order", {
+    const order = await rpc<OrderRow>("anon", "customer_place_order", {
       p_session_token: t2, p_items: [await burgerItem()], p_notes: null, p_idempotency_key: key(),
     });
     await expect(rpc("anon", "customer_cancel_order", { p_session_token: t5, p_order_id: order.id }))
       .rejects.toThrow(/não encontrado nesta mesa/);
-    const ok = await rpc<any>("anon", "customer_cancel_order", { p_session_token: t2, p_order_id: order.id });
+    const ok = await rpc<OrderRow>("anon", "customer_cancel_order", { p_session_token: t2, p_order_id: order.id });
     expect(ok.status).toBe("cancelled");
   });
 
@@ -178,7 +179,7 @@ d("Pedidos do cliente", () => {
     const token = await openCustomer(5);
     const qty = async () => Number((await admin(`select current_qty from ingredients where name = 'Blend bovino 180g'`))[0].current_qty);
     const before = await qty();
-    const order = await rpc<any>("anon", "customer_place_order", {
+    const order = await rpc<OrderRow>("anon", "customer_place_order", {
       p_session_token: token, p_items: [await burgerItem(3)], p_notes: null, p_idempotency_key: key(),
     });
     expect(await qty()).toBe(before - 3);
@@ -188,8 +189,8 @@ d("Pedidos do cliente", () => {
 
   it("chamado de garçom não é duplicado enquanto estiver aberto", async () => {
     const token = await openCustomer(5);
-    const a = await rpc<any>("anon", "customer_request_service", { p_session_token: token, p_type: "call_waiter", p_note: null });
-    const b = await rpc<any>("anon", "customer_request_service", { p_session_token: token, p_type: "call_waiter", p_note: null });
+    const a = await rpc<IdRow>("anon", "customer_request_service", { p_session_token: token, p_type: "call_waiter", p_note: null });
+    const b = await rpc<IdRow>("anon", "customer_request_service", { p_session_token: token, p_type: "call_waiter", p_note: null });
     expect(a.id).toBe(b.id);
   });
 });
@@ -197,8 +198,8 @@ d("Pedidos do cliente", () => {
 d("Cozinha, garçom e permissões", () => {
   it("segue o fluxo recebido → preparo → pronto → entregue com papéis corretos", async () => {
     await resetTable(6);
-    const tab = await rpc<any>(waiter, "staff_open_tab", { p_table_id: (await tableByNumber(6)).id, p_customer_count: 2 });
-    const order = await rpc<any>(waiter, "staff_place_order", {
+    const tab = await rpc<TabRow>(waiter, "staff_open_tab", { p_table_id: (await tableByNumber(6)).id, p_customer_count: 2 });
+    const order = await rpc<OrderRow>(waiter, "staff_place_order", {
       p_tab_id: tab.id, p_items: [await burgerItem()], p_notes: "mesa com criança", p_priority: true, p_idempotency_key: key(),
     });
     expect(order.source).toBe("waiter");
@@ -212,7 +213,7 @@ d("Cozinha, garçom e permissões", () => {
     await rpc(cook, "update_order_status", { p_order_id: order.id, p_to: "ready", p_expected_from: "preparing" });
     await expect(rpc(cook, "update_order_status", { p_order_id: order.id, p_to: "delivered", p_expected_from: "ready" }))
       .rejects.toThrow(/não pode alterar/);
-    const done = await rpc<any>(waiter, "update_order_status", { p_order_id: order.id, p_to: "delivered", p_expected_from: "ready" });
+    const done = await rpc<OrderRow>(waiter, "update_order_status", { p_order_id: order.id, p_to: "delivered", p_expected_from: "ready" });
     expect(done.status).toBe("delivered");
     expect(done.delivered_by).toBe(waiter.id);
     const hist = await admin(`select to_status from order_status_history where order_id = $1 order by id`, [order.id]);
@@ -229,8 +230,8 @@ d("Cozinha, garçom e permissões", () => {
 
   it("cancelamento após início do preparo exige PIN de gerente e registra responsável", async () => {
     const t = await tableByNumber(6);
-    const tab = await rpc<any>(waiter, "staff_open_tab", { p_table_id: t.id, p_customer_count: null });
-    const order = await rpc<any>(waiter, "staff_place_order", {
+    const tab = await rpc<TabRow>(waiter, "staff_open_tab", { p_table_id: t.id, p_customer_count: null });
+    const order = await rpc<OrderRow>(waiter, "staff_place_order", {
       p_tab_id: tab.id, p_items: [await burgerItem()], p_notes: null, p_priority: false, p_idempotency_key: key(),
     });
     await rpc(cook, "update_order_status", { p_order_id: order.id, p_to: "preparing", p_expected_from: null });
@@ -240,7 +241,7 @@ d("Cozinha, garçom e permissões", () => {
       .rejects.toThrow(/PIN/);
     await expect(rpc(waiter, "cancel_order", { p_order_id: order.id, p_reason: "Cliente desistiu", p_supervisor_pin: "0000" }))
       .rejects.toThrow(/PIN/);
-    const c = await rpc<any>(waiter, "cancel_order", { p_order_id: order.id, p_reason: "Cliente desistiu", p_supervisor_pin: "4321" });
+    const c = await rpc<OrderRow>(waiter, "cancel_order", { p_order_id: order.id, p_reason: "Cliente desistiu", p_supervisor_pin: "4321" });
     expect(c.status).toBe("cancelled");
     expect(c.cancelled_by).toBe(waiter.id);
     expect(c.cancel_authorized_by).toBe(adminUser.id);
@@ -251,7 +252,7 @@ d("Cozinha, garçom e permissões", () => {
 
   it("cliente não cancela pedido já em preparo", async () => {
     const token = await openCustomer(6);
-    const order = await rpc<any>("anon", "customer_place_order", { p_session_token: token, p_items: [await burgerItem()], p_notes: null, p_idempotency_key: key() });
+    const order = await rpc<OrderRow>("anon", "customer_place_order", { p_session_token: token, p_items: [await burgerItem()], p_notes: null, p_idempotency_key: key() });
     await rpc(cook, "update_order_status", { p_order_id: order.id, p_to: "preparing", p_expected_from: null });
     await expect(rpc("anon", "customer_cancel_order", { p_session_token: token, p_order_id: order.id })).rejects.toThrow(/em preparação/);
   });
@@ -291,12 +292,12 @@ d("Caixa e fechamento de conta", () => {
     token = await openCustomer(7);
     const refri = await productByName("Refrigerante Lata 350ml");
     const cola = await optionByName("Refrigerante Lata 350ml", "Cola");
-    const order = await rpc<any>("anon", "customer_place_order", {
+    const order = await rpc<OrderRow>("anon", "customer_place_order", {
       p_session_token: token, p_items: [await burgerItem(2), { product_id: refri.id, quantity: 2, modifiers: [cola] }],
       p_notes: null, p_idempotency_key: key(),
     });
     await serve(order.id);
-    const st = await rpc<any>("anon", "customer_get_state", { p_session_token: token });
+    const st = await rpc<CustomerState>("anon", "customer_get_state", { p_session_token: token });
     tabId = st.tab.id;
     // 2*39,90 + 2*7,00 = 93,80 ; taxa 10% = 9,38 ; total 103,18
     expect(Number(st.totals.total)).toBeCloseTo(103.18, 2);
@@ -314,7 +315,7 @@ d("Caixa e fechamento de conta", () => {
     await expect(rpc(cashier, "set_tab_adjustments", {
       p_tab_id: tabId, p_service_fee_enabled: true, p_discount_amount: 30, p_discount_reason: "Cortesia", p_supervisor_pin: null,
     })).rejects.toThrow(/PIN/);
-    const t = await rpc<any>(cashier, "set_tab_adjustments", {
+    const t = await rpc<TotalsRow>(cashier, "set_tab_adjustments", {
       p_tab_id: tabId, p_service_fee_enabled: true, p_discount_amount: 5, p_discount_reason: "Cliente frequente", p_supervisor_pin: null,
     });
     expect(Number(t.total)).toBeCloseTo(98.18, 2);
@@ -326,11 +327,11 @@ d("Caixa e fechamento de conta", () => {
     })).rejects.toThrow(/maior que o saldo/);
 
     const k = key();
-    const p1 = await rpc<any>(cashier, "register_payment", {
+    const p1 = await rpc<PaymentResult>(cashier, "register_payment", {
       p_tab_id: tabId, p_method: "cash", p_amount: 50, p_received_amount: 100, p_payer_label: "Pessoa 1", p_idempotency_key: k,
     });
     expect(Number(p1.payment.change_amount)).toBe(50);
-    const dup = await rpc<any>(cashier, "register_payment", {
+    const dup = await rpc<PaymentResult>(cashier, "register_payment", {
       p_tab_id: tabId, p_method: "cash", p_amount: 50, p_received_amount: 100, p_payer_label: "Pessoa 1", p_idempotency_key: k,
     });
     expect(dup.duplicate).toBe(true);
@@ -339,14 +340,14 @@ d("Caixa e fechamento de conta", () => {
     await expect(rpc(cashier, "close_tab", { p_tab_id: tabId, p_force_reason: null, p_supervisor_pin: null }))
       .rejects.toThrow(/saldo pendente/);
 
-    const p2 = await rpc<any>(cashier, "register_payment", {
+    const p2 = await rpc<PaymentResult>(cashier, "register_payment", {
       p_tab_id: tabId, p_method: "credit", p_amount: 48.18, p_received_amount: null, p_payer_label: "Pessoa 2", p_idempotency_key: key(),
     });
     expect(Number(p2.totals.balance)).toBe(0);
   });
 
   it("encerra a comanda, libera a mesa e invalida a sessão do cliente", async () => {
-    const r = await rpc<any>(cashier, "close_tab", { p_tab_id: tabId, p_force_reason: null, p_supervisor_pin: null });
+    const r = await rpc<CloseResult>(cashier, "close_tab", { p_tab_id: tabId, p_force_reason: null, p_supervisor_pin: null });
     expect(r.tab.status).toBe("closed");
     await expect(rpc("anon", "customer_get_state", { p_session_token: token })).rejects.toThrow(/expirada|encerrada/);
     await expect(rpc("anon", "customer_place_order", {
@@ -358,15 +359,15 @@ d("Caixa e fechamento de conta", () => {
     })).rejects.toThrow(/encerrada/);
     // Novo escaneamento abre nova comanda
     const newToken = await openCustomer(7);
-    const st = await rpc<any>("anon", "customer_get_state", { p_session_token: newToken });
+    const st = await rpc<CustomerState>("anon", "customer_get_state", { p_session_token: newToken });
     expect(st.tab.id).not.toBe(tabId);
   });
 
   it("não encerra comanda com pedidos aguardando ou em preparo", async () => {
     await resetTable(12);
     const t = await tableByNumber(12);
-    const tab = await rpc<any>(waiter, "staff_open_tab", { p_table_id: t.id, p_customer_count: 1 });
-    const o = await rpc<any>(waiter, "staff_place_order", { p_tab_id: tab.id, p_items: [await burgerItem()], p_notes: null, p_priority: false, p_idempotency_key: key() });
+    const tab = await rpc<TabRow>(waiter, "staff_open_tab", { p_table_id: t.id, p_customer_count: 1 });
+    const o = await rpc<OrderRow>(waiter, "staff_place_order", { p_tab_id: tab.id, p_items: [await burgerItem()], p_notes: null, p_priority: false, p_idempotency_key: key() });
     await expect(rpc(cashier, "close_tab", { p_tab_id: tab.id, p_force_reason: "Teste de bloqueio", p_supervisor_pin: "4321" })).rejects.toThrow(/em preparo/);
     await rpc(cook, "update_order_status", { p_order_id: o.id, p_to: "preparing", p_expected_from: null });
     await rpc(cook, "update_order_status", { p_order_id: o.id, p_to: "ready", p_expected_from: null });
@@ -378,20 +379,20 @@ d("Caixa e fechamento de conta", () => {
   it("fechamento com saldo pendente exige justificativa e PIN", async () => {
     const t = await tableByNumber(9);
     await resetTable(9);
-    const tab = await rpc<any>(waiter2, "staff_open_tab", { p_table_id: t.id, p_customer_count: 1 });
-    const o = await rpc<any>(waiter2, "staff_place_order", { p_tab_id: tab.id, p_items: [await burgerItem()], p_notes: null, p_priority: false, p_idempotency_key: key() });
+    const tab = await rpc<TabRow>(waiter2, "staff_open_tab", { p_table_id: t.id, p_customer_count: 1 });
+    const o = await rpc<OrderRow>(waiter2, "staff_place_order", { p_tab_id: tab.id, p_items: [await burgerItem()], p_notes: null, p_priority: false, p_idempotency_key: key() });
     await serve(o.id);
     await expect(rpc(cashier, "close_tab", { p_tab_id: tab.id, p_force_reason: "Cliente saiu sem pagar", p_supervisor_pin: null })).rejects.toThrow(/PIN/);
-    const r = await rpc<any>(cashier, "close_tab", { p_tab_id: tab.id, p_force_reason: "Cliente saiu sem pagar", p_supervisor_pin: "4321" });
+    const r = await rpc<CloseResult>(cashier, "close_tab", { p_tab_id: tab.id, p_force_reason: "Cliente saiu sem pagar", p_supervisor_pin: "4321" });
     expect(r.tab.forced_close_authorized_by).toBe(adminUser.id);
   });
 
   it("estorno exige autorização e fechamento de caixa calcula divergência", async () => {
     await resetTable(10);
     const t = await tableByNumber(10);
-    const tab = await rpc<any>(waiter, "staff_open_tab", { p_table_id: t.id, p_customer_count: 1 });
+    const tab = await rpc<TabRow>(waiter, "staff_open_tab", { p_table_id: t.id, p_customer_count: 1 });
     await rpc(waiter, "staff_place_order", { p_tab_id: tab.id, p_items: [await burgerItem()], p_notes: null, p_priority: false, p_idempotency_key: key() });
-    const p = await rpc<any>(cashier, "register_payment", {
+    const p = await rpc<PaymentResult>(cashier, "register_payment", {
       p_tab_id: tab.id, p_method: "cash", p_amount: 20, p_received_amount: 20, p_payer_label: null, p_idempotency_key: key(),
     });
     await expect(rpc(cashier, "void_payment", { p_payment_id: p.payment.id, p_reason: "Valor errado", p_supervisor_pin: null })).rejects.toThrow(/PIN/);
@@ -401,7 +402,7 @@ d("Caixa e fechamento de conta", () => {
     await expect(rpc(cashier, "register_cash_movement", { p_type: "withdrawal", p_amount: 10000, p_reason: "Cofre" })).rejects.toThrow(/maior que o dinheiro/);
     await rpc(cashier, "register_cash_movement", { p_type: "withdrawal", p_amount: 100, p_reason: "Cofre" });
     // abertura 150 + dinheiro 50 + suprimento 30 - sangria 100 = 130 (pagamento estornado não conta)
-    const s = await rpc<any>(cashier, "close_cash_session", { p_counted_cash: 125, p_notes: "faltou troco" });
+    const s = await rpc<CashSessionRow>(cashier, "close_cash_session", { p_counted_cash: 125, p_notes: "faltou troco" });
     expect(Number(s.expected_cash)).toBe(130);
     expect(Number(s.difference)).toBe(-5);
   });
@@ -410,13 +411,13 @@ d("Caixa e fechamento de conta", () => {
 d("Relatórios e dados de demonstração", () => {
   it("gera histórico fictício identificado e relatório consolidado", async () => {
     await admin(`select demo_generate_history(5)`);
-    const r = await rpc<any>(adminUser, "report_summary", {
+    const r = await rpc<ReportRow>(adminUser, "report_summary", {
       p_from: new Date(Date.now() - 10 * 86400000).toISOString(), p_to: new Date(Date.now() + 86400000).toISOString(), p_include_demo: true,
     });
     expect(Number(r.revenue)).toBeGreaterThan(0);
     expect(r.includes_demo_data).toBe(true);
     expect(r.top_products.length).toBeGreaterThan(0);
-    const live = await rpc<any>(adminUser, "dashboard_live", {});
+    const live = await rpc<LiveRow>(adminUser, "dashboard_live", {});
     expect(live.tables_total).toBe(15);
   });
 

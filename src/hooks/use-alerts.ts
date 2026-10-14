@@ -1,30 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
+import { useStoredState } from "./use-stored-state";
 import { asset } from "@/lib/asset";
 
 /** Alertas sonoros (Web Audio, sem arquivos externos), vibração e notificação do navegador. */
 export function useAlerts(storageKey: string, defaultEnabled = true) {
-  const [enabled, setEnabled] = useState(defaultEnabled);
-  const [volume, setVolume] = useState(0.6);
+  const defaults = useMemo(() => ({ enabled: defaultEnabled, volume: 0.6 }), [defaultEnabled]);
+  const [prefs, setPrefs] = useStoredState("local", storageKey, defaults);
+  const enabled = Boolean(prefs.enabled);
+  const volume = Number(prefs.volume ?? 0.6);
   const ctx = useRef<AudioContext | null>(null);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        const v = JSON.parse(raw);
-        setEnabled(Boolean(v.enabled));
-        setVolume(Number(v.volume ?? 0.6));
-      }
-    } catch { /* preferências locais indisponíveis */ }
-  }, [storageKey]);
-
-  const save = useCallback((next: { enabled: boolean; volume: number }) => {
-    setEnabled(next.enabled);
-    setVolume(next.volume);
-    try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* ignore */ }
-  }, [storageKey]);
+  const save = useCallback((next: { enabled: boolean; volume: number }) => setPrefs(next), [setPrefs]);
 
   /** Navegadores exigem um gesto do usuário para liberar o áudio. */
   const unlock = useCallback(() => {

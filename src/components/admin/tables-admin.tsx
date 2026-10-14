@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Download, FileDown, ListPlus, Pencil, Plus, Printer, QrCode, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -143,7 +144,7 @@ function QrDialog({ tables, restaurantName, onClose, onRegenerated }: {
   const single = tables.length === 1;
 
   async function regenerate(t: DiningTable) {
-    if (!confirm(`Gerar um novo QR Code para a Mesa ${pad(t.number)}?\n\nO código impresso atual deixará de funcionar e precisará ser substituído na mesa.`)) return;
+    if (!confirm(`Gerar um novo QR Code para a Mesa ${pad(t.number)}?\n\nO código impresso atual deixará de funcionar e precisará ser substituído na mesa. Clientes conectados pelo código antigo precisarão escanear o novo.`)) return;
     setBusy(t.id);
     try {
       await rpc("regenerate_table_qr", { p_table_id: t.id });
@@ -169,7 +170,7 @@ function QrDialog({ tables, restaurantName, onClose, onRegenerated }: {
         <div className={single ? "" : "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"}>
           {tables.map((t) => (
             <div key={t.id} className="space-y-2">
-              {cards[t.id] ? <img src={cards[t.id]} alt={`QR Code da Mesa ${pad(t.number)}`} className="w-full rounded-lg border" /> : <Skeleton className="aspect-[8/11] w-full" />}
+              {cards[t.id] ? <Image src={cards[t.id]} alt={`QR Code da Mesa ${pad(t.number)}`} width={800} height={1100} unoptimized className="h-auto w-full rounded-lg border" /> : <Skeleton className="aspect-[8/11] w-full" />}
               <div className="flex gap-1">
                 <Button size="sm" variant="outline" className="flex-1" disabled={!cards[t.id]} onClick={() => downloadDataUrl(cards[t.id], `mesa-${pad(t.number)}.png`)}>
                   <Download /> PNG

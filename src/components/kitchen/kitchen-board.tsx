@@ -39,6 +39,7 @@ const COLUMNS: { status: OrderStatus; title: string; accent: string }[] = [
 export function KitchenBoard({ soundDefault, lateMinutes }: { soundDefault: boolean; lateMinutes: number }) {
   const { data, connected, reload } = useLiveQuery("kitchen", loadKitchen, ["orders"], { intervalMs: 15000 });
   const alerts = useAlerts("alerts:kitchen", soundDefault);
+  const { beep, notify } = alerts;
   const now = useNow(10000);
   const seen = useRef<Set<string> | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -51,12 +52,12 @@ export function KitchenBoard({ soundDefault, lateMinutes }: { soundDefault: bool
     if (seen.current) {
       const fresh = [...ids].filter((id) => !seen.current!.has(id));
       if (fresh.length) {
-        alerts.beep("new");
-        alerts.notify("Novo pedido na cozinha", `${fresh.length} pedido(s) recebido(s)`);
+        beep("new");
+        notify("Novo pedido na cozinha", `${fresh.length} pedido(s) recebido(s)`);
       }
     }
     seen.current = new Set([...(seen.current ?? []), ...ids]);
-  }, [data, alerts]);
+  }, [data, beep, notify]);
 
   const tableNumber = useCallback((id: string) => pad(data?.tables.find((t) => t.id === id)?.number ?? 0), [data]);
 

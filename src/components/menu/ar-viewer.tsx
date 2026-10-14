@@ -27,6 +27,7 @@ export function ArViewer({ glb, usdz, alt, poster, illustrative = true, classNam
   const ref = useRef<ModelViewerElement | null>(null);
   const [ready, setReady] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [arSupported, setArSupported] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -46,7 +47,10 @@ export function ArViewer({ glb, usdz, alt, poster, illustrative = true, classNam
       const status = (e as CustomEvent<{ status: string }>).detail?.status;
       if (status === "failed") toast.error("Não foi possível iniciar a realidade aumentada neste aparelho. Use a visualização 3D.");
     };
-    const onError = () => toast.error("Falha ao carregar o modelo 3D.");
+    const onError = () => {
+      setFailed(true);
+      toast.error("Não foi possível carregar o modelo 3D.");
+    };
     el.addEventListener("load", onLoad);
     el.addEventListener("ar-status", onStatus);
     el.addEventListener("error", onError);
@@ -90,7 +94,12 @@ export function ArViewer({ glb, usdz, alt, poster, illustrative = true, classNam
             </button>
           </model-viewer>
         )}
-        {!loaded && (
+        {failed && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-sm text-white/85">
+            <Info className="size-6" /> Não foi possível carregar o modelo 3D deste prato. Veja a foto ou tente novamente mais tarde.
+          </div>
+        )}
+        {!loaded && !failed && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-white/80">
             <Spinner className="size-6" /> Carregando modelo 3D…
           </div>
