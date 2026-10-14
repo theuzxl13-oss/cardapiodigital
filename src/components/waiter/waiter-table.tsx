@@ -2,7 +2,8 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, DoorOpen, Plus, Receipt, Undo2, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ArrowRightLeft, DoorOpen, Plus, Receipt, Undo2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,12 +13,14 @@ import { Field, Input } from "@/components/ui/input";
 import { EmptyState, Separator, Skeleton } from "@/components/ui/misc";
 import { OrderComposer } from "@/components/order/order-composer";
 import { OrderList } from "@/components/order/order-list";
+import { TableActionsDialog } from "@/components/order/table-actions-dialog";
 import { SupervisorDialog } from "@/components/staff/supervisor-dialog";
 import { useLiveQuery } from "@/hooks/use-live-query";
 import { check, loadMenuForStaff, loadTabDetail, rpc, sb } from "@/lib/api";
 import { elapsedLabel, money, pad } from "@/lib/format";
 import { TAB_STATUS_LABEL } from "@/lib/labels";
 import type { DiningTable, Profile, Tab } from "@/lib/types";
+import { routes } from "@/lib/routes";
 
 async function loadTableView(tableId: string) {
   const { data: auth } = await sb().auth.getUser();
@@ -43,6 +46,8 @@ export function WaiterTable({ tableId }: { tableId: string }) {
   const [openDialog, setOpenDialog] = useState(false);
   const [people, setPeople] = useState("2");
   const [releasing, setReleasing] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const router = useRouter();
 
   if (loading || !data) return <div className="mx-auto max-w-3xl space-y-3 p-4"><Skeleton className="h-24" /><Skeleton className="h-64" /></div>;
   const { table, detail, menu, me } = data;
@@ -117,6 +122,9 @@ export function WaiterTable({ tableId }: { tableId: string }) {
             <Button variant="outline" disabled={detail.orders.some((o) => o.status !== "cancelled")} onClick={() => setReleasing(true)}>
               <DoorOpen /> Liberar sem consumo
             </Button>
+            <Button variant="outline" className="col-span-2" onClick={() => setMoving(true)}>
+              <ArrowRightLeft /> Transferir / juntar mesas
+            </Button>
           </div>
 
           <h2 className="pt-2 font-semibold">Pedidos</h2>
@@ -134,6 +142,8 @@ export function WaiterTable({ tableId }: { tableId: string }) {
 
           <OrderComposer open={composer} onOpenChange={setComposer} tabId={detail.tab.id} tableNumber={table.number}
             categories={menu.categories.filter((c) => c.active)} products={menu.products} onSent={reload} />
+          <TableActionsDialog open={moving} onOpenChange={setMoving} tab={detail.tab} tableNumber={table.number}
+            onTransferred={(id) => router.push(routes.waiterTable(id))} onMerged={reload} />
           <SupervisorDialog open={releasing} onOpenChange={setReleasing} title="Liberar mesa sem consumo" askPin={false}
             description="Use quando a mesa foi aberta por engano ou o cliente saiu sem pedir."
             confirmLabel="Liberar mesa"

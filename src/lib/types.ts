@@ -115,6 +115,8 @@ export interface Tab {
   discount_amount: number;
   discount_reason: string | null;
   forced_close_reason: string | null;
+  /** Preenchido quando a comanda foi unida a outra ("Juntar mesas"). */
+  merged_into_tab_id: string | null;
   is_demo: boolean;
 }
 

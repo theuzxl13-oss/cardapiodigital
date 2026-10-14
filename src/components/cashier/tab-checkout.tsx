@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Banknote, CheckCircle2, CreditCard, Divide, Lock, Percent, Printer, QrCode, Undo2, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, Banknote, CheckCircle2, CreditCard, Divide, Lock, Percent, Printer, QrCode, Undo2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { Separator, Skeleton, Spinner } from "@/components/ui/misc";
 import { Switch } from "@/components/ui/switch";
 import { OrderList } from "@/components/order/order-list";
 import { SupervisorDialog } from "@/components/staff/supervisor-dialog";
+import { TableActionsDialog } from "@/components/order/table-actions-dialog";
 import { useMyCashSession } from "./cash-session-store";
 import { useLiveQuery } from "@/hooks/use-live-query";
 import { authorizeWithPin, check, loadTabDetail, rpc, sb } from "@/lib/api";
@@ -57,6 +58,7 @@ export function TabCheckout({ tabId }: { tabId: string }) {
   const [voiding, setVoiding] = useState<string | null>(null);
   const [forceClose, setForceClose] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [moving, setMoving] = useState(false);
 
   const items = useMemo(() => (data?.orders ?? []).filter((o) => o.status !== "cancelled").flatMap((o) => o.order_items ?? []), [data]);
 
@@ -135,8 +137,16 @@ export function TabCheckout({ tabId }: { tabId: string }) {
           <p className="text-sm text-muted-foreground">Aberta em {dateTime(tab.opened_at)}{tab.customer_count ? ` · ${tab.customer_count} pessoas` : ""}</p>
         </div>
         <Badge variant={tab.status === "closed" ? "secondary" : tab.status === "closing" ? "info" : "warning"} className="ml-auto">{TAB_STATUS_LABEL[tab.status]}</Badge>
+        {isOpen && <Button variant="outline" onClick={() => setMoving(true)}><ArrowRightLeft /> Transferir / juntar</Button>}
         <Button asChild variant="outline"><Link href={routes.receipt(tab.id)}><Printer /> {isOpen ? "Pré-conta" : "Comprovante"}</Link></Button>
       </div>
+      {tab.merged_into_tab_id && (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950/30">
+          {tab.forced_close_reason ?? "Comanda unida a outra mesa."}{" "}
+          <Link className="font-medium underline" href={routes.checkout(tab.merged_into_tab_id)}>Abrir a comanda unida</Link>
+        </p>
+      )}
+      {isOpen && <TableActionsDialog open={moving} onOpenChange={setMoving} tab={tab} tableNumber={table.number} onTransferred={reload} onMerged={reload} />}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_420px]">
         {/* Itens consumidos */}
