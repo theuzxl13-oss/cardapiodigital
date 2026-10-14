@@ -17,6 +17,10 @@ insert into auth.users (id, email, raw_app_meta_data, demo_password) values
 ('a0000000-0000-4000-8000-000000000010', 'garcom5@saborarte.demo',  '{"role":"waiter","restaurant_id":"00000000-0000-4000-a000-000000000001","full_name":"Thiago Garçom"}', 'Demo@1234')
 on conflict (id) do nothing;
 
+-- Demonstração: tokens de QR fixos por mesa, para o link aberto no computador funcionar no celular
+-- (cada aparelho tem seu próprio banco no navegador). No sistema real os tokens são aleatórios.
+update public.dining_tables set qr_token = md5('cardapio-demo-mesa-' || number);
+
 select public.demo_set_pin('a0000000-0000-4000-8000-000000000001', '1234');
 select public.demo_generate_history(21);
 select public.demo_generate_live_orders();

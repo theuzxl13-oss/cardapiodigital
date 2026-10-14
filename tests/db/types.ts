@@ -14,3 +14,5 @@ export interface CloseResult { tab: { status: string; forced_close_authorized_by
 export interface CashSessionRow { expected_cash: string; difference: string }
 export interface ReportRow { revenue: string; includes_demo_data: boolean; top_products: unknown[] }
 export interface LiveRow { tables_total: number }
+export interface PinResult { ok: boolean; locked?: boolean; remaining?: number; message?: string }
+export interface TabSummaryRow { tab_id: string; total: string; balance: string }

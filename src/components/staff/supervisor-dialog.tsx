@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/misc";
+import { authorizeWithPin } from "@/lib/api";
 
 /**
  * Diálogo de ação sensível: coleta justificativa e, quando necessário, o PIN de um
@@ -32,6 +34,14 @@ export function SupervisorDialog({
     e.preventDefault();
     setBusy(true);
     try {
+      if (askPin) {
+        try {
+          await authorizeWithPin(pin);
+        } catch (err) {
+          toast.error((err as Error).message);
+          return;
+        }
+      }
       await onConfirm(reason.trim(), askPin ? pin : null);
       setReason(""); setPin("");
       onOpenChange(false);

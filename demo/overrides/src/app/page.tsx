@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { serviceQuery } from "@/lib/demo/mock-client";
+import { OpenOnPhone } from "@/components/menu/open-on-phone";
 import { asset } from "@/lib/asset";
 
 const USERS = [
@@ -71,6 +72,11 @@ export default function Home() {
             </ol>
           </CardContent>
         </Card>
+
+        {tables.length > 0 && (
+          <OpenOnPhone path={mesa(5)} title="Ver a realidade aumentada no celular"
+            description="Escaneie com a câmera do celular para abrir o cardápio da Mesa 05 no telefone. Toque em “Ver na mesa” em um prato e depois em “Visualizar na minha mesa”: a câmera abre e o prato aparece sobre a mesa em tamanho real." />
+        )}
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[

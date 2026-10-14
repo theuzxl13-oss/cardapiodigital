@@ -24,6 +24,7 @@ beforeAll(async () => {
   cook = await createUser("kitchen", "Cozinha Auditoria");
   cashierA = await createUser("cashier", "Caixa A");
   cashierB = await createUser("cashier", "Caixa B");
+  await rpc(mgr, "set_staff_pin", { p_user_id: mgr.id, p_pin: "4321" });
   await rpc(cashierA, "open_cash_session", { p_opening_amount: 100 });
   await rpc(cashierB, "open_cash_session", { p_opening_amount: 100 });
 });
@@ -112,6 +113,48 @@ d("Regeneração do QR Code", () => {
     await rpc(mgr, "regenerate_table_qr", { p_table_id: t.id });
     await expect(rpc("anon", "customer_open_session", { p_qr_token: t.qr_token, p_user_agent: "vitest" })).rejects.toThrow(/QR Code inválido/);
     await expect(rpc("anon", "customer_get_state", { p_session_token: s.session_token })).rejects.toThrow(/expirada|encerrada/);
+  });
+});
+
+d("PIN de gerente", () => {
+  it("bloqueia após 5 tentativas erradas, mesmo com o PIN certo depois, e a autorização vale uma vez só", async () => {
+    const w = await createUser("waiter", "Garçom PIN");
+    for (let i = 0; i < 5; i++) {
+      const r = await rpc<{ ok: boolean; remaining?: number }>(w, "authorize_supervisor_pin", { p_pin: "9999" });
+      expect(r.ok).toBe(false);
+    }
+    const locked = await rpc<{ ok: boolean; locked: boolean }>(w, "authorize_supervisor_pin", { p_pin: "4321" });
+    expect(locked).toMatchObject({ ok: false, locked: true });
+    const attempts = await admin<{ c: number }>(`select count(*)::int c from supervisor_pin_attempts where actor_id = $1 and not success`, [w.id]);
+    expect(attempts[0].c).toBe(5);
+    await admin(`delete from supervisor_pin_attempts where actor_id = $1`, [w.id]); // simula o fim do bloqueio
+
+    const { tab, order } = await servedTab(10);
+    void tab;
+    expect((await rpc<{ ok: boolean }>(w, "authorize_supervisor_pin", { p_pin: "4321" })).ok).toBe(true);
+    // Sem PIN direto: o PIN passado na operação não substitui a autorização
+    await rpc(w, "cancel_order", { p_order_id: order.id, p_reason: "Teste de autorização", p_supervisor_pin: "4321" });
+    const { order: order2 } = await servedTab(9);
+    await expect(rpc(w, "cancel_order", { p_order_id: order2.id, p_reason: "Segunda vez", p_supervisor_pin: "4321" }))
+      .rejects.toThrow(/Autorização necessária/);
+  });
+
+  it("não aceita PIN enviado direto na operação, sem passar pela validação", async () => {
+    const { order } = await servedTab(8);
+    await expect(rpc(waiter, "cancel_order", { p_order_id: order.id, p_reason: "Força bruta", p_supervisor_pin: "4321" }))
+      .rejects.toThrow(/Autorização necessária/);
+  });
+});
+
+d("Resumo das comandas abertas", () => {
+  it("retorna os totais de todas as comandas abertas numa única chamada, iguais aos individuais", async () => {
+    const { tab } = await servedTab(7);
+    const rows = await as(cashierA, (q) => q<{ tab_id: string; total: string; balance: string }>(`select * from staff_open_tabs_summary()`));
+    expect(rows.length).toBeGreaterThan(0);
+    const one = rows.find((r) => r.tab_id === tab.id);
+    const single = (await admin<Totals>(`select * from tab_totals($1)`, [tab.id]))[0];
+    expect(Number(one?.total)).toBe(Number(single.total));
+    await expect(rpc(cook, "staff_open_tabs_summary", {})).rejects.toThrow(/Acesso negado/);
   });
 });
 

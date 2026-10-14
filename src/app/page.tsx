@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DEMO_MODE, RESTAURANT_ID, SUPABASE_CONFIGURED } from "@/lib/config";
 import { getServiceSupabase } from "@/lib/supabase/server";
 import { asset } from "@/lib/asset";
+import { OpenOnPhone } from "@/components/menu/open-on-phone";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +103,10 @@ export default async function Home() {
             </Link>
           ))}
         </section>
+
+        {DEMO_MODE && tables.find((t) => t.number === 5) && (
+          <OpenOnPhone path={`/menu?mesa=05&k=${tables.find((t) => t.number === 5)!.qr_token}`} title="Ver a realidade aumentada no celular" />
+        )}
 
         {DEMO_MODE && (
           <section className="grid gap-6 lg:grid-cols-2">

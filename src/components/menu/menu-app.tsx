@@ -110,6 +110,22 @@ export function MenuApp({ restaurant, categories, initialProducts, initialState 
     [categories, products],
   );
   const featured = products.filter((p) => p.featured && p.available);
+
+  // Categoria em destaque acompanha a rolagem do cardápio
+  const categoryIds = byCategory.map((c) => c.id).join(",");
+  useEffect(() => {
+    const sections = categoryIds.split(",").map((id) => document.getElementById(`cat-${id}`)).filter((el): el is HTMLElement => !!el);
+    if (!sections.length || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((e) => e.isIntersecting).sort((x, y) => x.boundingClientRect.top - y.boundingClientRect.top);
+      if (visible[0]) setActiveCat(visible[0].target.id.slice(4));
+    }, { rootMargin: "-72px 0px -65% 0px" });
+    sections.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [categoryIds]);
+  useEffect(() => {
+    if (activeCat) document.getElementById(`chip-${activeCat}`)?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [activeCat]);
   const activeOrders = state.orders.filter((o) => !["delivered", "cancelled"].includes(o.status)).length;
   const hasRequest = (t: "call_waiter" | "request_bill") => state.open_requests.some((r) => r.type === t);
 
@@ -176,6 +192,7 @@ export function MenuApp({ restaurant, categories, initialProducts, initialState 
           {byCategory.map((c) => (
             <button
               key={c.id}
+              id={`chip-${c.id}`}
               onClick={() => {
                 setActiveCat(c.id);
                 document.getElementById(`cat-${c.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });

@@ -261,6 +261,8 @@ prato aparece **sobre a mesa, em tamanho real**. Ele pode andar em volta para ve
 - O preço do pedido fica gravado no momento da confirmação — mudar o cardápio depois **não altera** pedidos antigos.
 - A cozinha não altera valores; o garçom não acessa configurações.
 - Cancelamentos registram **quem fez, quem autorizou e o motivo**.
+- **PIN de gerente com limite**: 5 tentativas erradas em 10 minutos bloqueiam o funcionário por 10 minutos; cada PIN correto libera uma única operação em até 2 minutos.
+- **Cabeçalho CSP** em produção: a página só carrega recursos do próprio site e do Supabase configurado.
 - Pedido já pago só pode ser cancelado depois do **estorno** do pagamento (o total nunca fica abaixo do valor pago).
 - Pedidos de comanda encerrada não mudam mais de status; gerar novo QR Code **encerra as sessões** abertas com o código antigo.
 - A comanda **não fecha** com saldo pendente (exceto com justificativa + PIN de gerente) nem com pedidos ainda na cozinha.
@@ -289,7 +291,8 @@ prato aparece **sobre a mesa, em tamanho real**. Ele pode andar em volta para ve
    | 6 | `supabase/migrations/20261010000006_security.sql` |
    | 7 | `supabase/migrations/20261010000007_realtime_storage.sql` |
    | 8 | `supabase/migrations/20261012000008_audit_fixes.sql` |
-   | 9 | `supabase/seed.sql` *(cardápio, mesas e estoque de demonstração)* |
+   | 9 | `supabase/migrations/20261014000009_pin_limit_tab_summary.sql` |
+   | 10 | `supabase/seed.sql` *(cardápio, mesas e estoque de demonstração)* |
 
 3. Em **Authentication → Sign In / Providers → Email**, desligue **“Allow new users to sign up”**.
 4. Em **Project Settings → API**, copie: **Project URL**, **anon key** e **service_role key**.
@@ -377,6 +380,7 @@ Supabase local (Docker): `npx supabase start` aplica migrações e seed automati
 | `npm run build` / `npm start` | Build e servidor de produção |
 | `npm run typecheck` | Verificação de tipos |
 | `npm run lint` | ESLint (configuração oficial do Next.js) |
+| `npm run demo:build` | Gera a demonstração estática (GitHub Pages) |
 | `npm test` | Testes (unitários + banco, se `DATABASE_URL` estiver definida) |
 | `npm run seed:demo` | Funcionários, histórico e pedidos de demonstração |
 | `npm run models:generate` | Regera os modelos 3D de demonstração |
@@ -403,6 +407,9 @@ DEMO=1 BASE_URL=http://localhost:4000/cardapiodigital node tests/e2e/full-flow.m
 ---
 
 ## 🧪 Testes
+
+A cada envio ou pull request, o **GitHub Actions** (`.github/workflows/ci.yml`) roda lint, checagem de tipos,
+todos os testes com PostgreSQL real e o build de produção.
 
 | Tipo | Onde | O que cobre |
 |---|---|---|
@@ -466,7 +473,7 @@ Recursos que dependem de serviços externos estão **preparados e claramente sin
 | **Cartão** | Registro manual após aprovação na maquininha | Integração TEF ou maquininha com API |
 | **Modelos 3D e fotos** | Ilustrativos (demonstração) | Fotogrametria e fotos reais, enviadas pelo admin |
 | **QR fotografado** | Quem tiver foto do QR poderia abrir a mesa de fora | Desligar “cliente abre a mesa” em Configurações (garçom abre) |
-| **PIN de gerente** | Sem limite de tentativas | Limitar tentativas e usar PIN de 6+ dígitos |
+| **PIN de gerente** | Limite de 5 tentativas a cada 10 minutos | Usar PIN de 6+ dígitos |
 | **Vários restaurantes** | Banco já preparado (`restaurant_id` em tudo); instalação atende um restaurante | Cadastro de restaurantes por domínio e planos (SaaS) |
 | **Sem internet** | Requer conexão | Modo offline (PWA) para cozinha e garçom |
 
